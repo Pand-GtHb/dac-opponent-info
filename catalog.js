@@ -374,6 +374,25 @@
     validate(next.catalog);
     return next;
   }
+  function updateCardSlots(settings, cardId, vehicleIds) {
+    const catalog = settings.catalog;
+    const card = catalog?.personal.cards.find(item => item.id === cardId);
+    if (!card) invalid("カードが見つかりません");
+    if (!Array.isArray(vehicleIds) || vehicleIds.length !== 3 || ![...vehicleIds].every(text)) invalid("スロット指定");
+    const assigned = vehicleIds.filter(Boolean);
+    if (new Set(assigned).size !== assigned.length) invalid("同じ車種を複数のスロットに登録できません");
+    const activeSlots = vehicleIds.flatMap((id, index) => {
+      if (!id) return [];
+      const vehicle = catalog.common.vehicles.find(item => item.id === id);
+      if (!vehicle) invalid("未登録の車種です");
+      const slot = index + 1;
+      return [card.activeSlots.find(item => item.slot === slot && item.vehicleId === id)
+        || { slot, vehicleId: id, label: vehicle.label }];
+    });
+    const next = { ...catalog, personal: { ...catalog.personal,
+      cards: catalog.personal.cards.map(item => item === card ? { ...card, activeSlots } : item) } };
+    return { ...settings, catalog: validate(withoutCardNumbers(next)) };
+  }
   function cardInfo(settings, cardId) {
     const card = settings.catalog?.personal.cards.find(item => item.id === cardId);
     if (!card) return [];
@@ -563,7 +582,7 @@
     }
     return next;
   }
-  const api = { validate, withoutCardNumbers, readBundle, readMasters, readSelectedMasters, readDailyUpdate, readTimingMasters, masterCardDiffs, mergeMasters, merge, choices, label, selectedCard, selectedRound, applyCard, suggestContext, warnings, profiles, cardInfo, updateProfiles, updateOnlineEnabled, updateCardTeam, registerCard, registerTeam, registerList, opponentTeams, teamSuggestions, vehicleOptions, vehicleGroups, normalizeStars, formatStars, compactGarages, cleanOpponentLists };
+  const api = { validate, withoutCardNumbers, readBundle, readMasters, readSelectedMasters, readDailyUpdate, readTimingMasters, masterCardDiffs, mergeMasters, merge, choices, label, selectedCard, selectedRound, applyCard, suggestContext, warnings, profiles, cardInfo, updateProfiles, updateOnlineEnabled, updateCardTeam, updateCardSlots, registerCard, registerTeam, registerList, opponentTeams, teamSuggestions, vehicleOptions, vehicleGroups, normalizeStars, formatStars, compactGarages, cleanOpponentLists };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RecordCatalog = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

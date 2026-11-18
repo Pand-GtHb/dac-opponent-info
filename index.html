@@ -7,12 +7,12 @@
   <title>DAC 対戦記録 PoC</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=101">
-  <script defer src="./catalog.js?v=89"></script>
-  <script defer src="./model.js?v=101"></script>
+  <link rel="stylesheet" href="./style.css?v=102">
+  <script defer src="./catalog.js?v=102"></script>
+  <script defer src="./model.js?v=102"></script>
   <script defer src="./storage.js?v=98"></script>
-  <script defer src="./maintenance.js?v=101"></script>
-  <script defer src="./app.js?v=101"></script>
+  <script defer src="./maintenance.js?v=102"></script>
+  <script defer src="./app.js?v=102"></script>
 </head>
 <body>
 <header><h1>DAC 対戦記録 <small>PoC <span id="appVersion"></span></small></h1>
@@ -39,7 +39,15 @@
           <h2>２．カード情報</h2>
           <div class="section-content">
             <div id="cardFields" class="session-fields"></div>
-            <details id="entryCardPanel" hidden><summary>選択カードの情報</summary><div id="entryCardInfo"></div></details>
+            <div id="cardSlotEditor" hidden>
+              <div class="session-fields card-slots">
+                <label>スロット1<select id="cardSlot1"></select></label>
+                <label>スロット2<select id="cardSlot2"></select></label>
+                <label>スロット3<select id="cardSlot3"></select></label>
+              </div>
+              <button type="button" id="saveCardSlots" disabled>スロット変更を保存</button>
+              <p id="cardSlotStatus" class="hint" role="status"></p>
+            </div>
             <button type="button" id="saveCardRank" hidden>表示中の自ランク・星をカード設定に保存</button>
             <p id="catalogWarnings" class="hint" role="status"></p>
           </div>
@@ -69,7 +77,6 @@
     <h2>１．入力記録 <span id="inputRecordCount"></span></h2>
     <div class="section-content">
       <p class="hint">Excel未反映のアプリ仮登録を表示します。入力途中の下書きは含みません。</p>
-      <label class="opponent-filter">相手列で絞り込み<input id="inputOpponentFilter" type="search" aria-controls="inputRecordList"></label>
       <div id="inputRecordList"></div>
     </div>
     <h2>２．保存</h2>
@@ -92,7 +99,6 @@
     <p class="hint">検索・相手列の絞り込みは全件が対象です。一覧は50件ずつ表示します。</p>
     <details id="savedRecords">
       <summary>対戦一覧 <span id="recordCount"></span></summary>
-      <label class="opponent-filter">相手列で絞り込み<input id="historyOpponentFilter" type="search" aria-controls="recordList"></label>
       <p id="recordSearchInfo" role="status"></p>
       <p class="hint">「登録No.」列に仮No.または正式なData_No.を表示します。仮登録の行は茶色の文字です。勝ちの行の青い背景は維持します。番号のない旧記録は「—」と表示します。</p>
       <nav id="historyPages" aria-label="過去実績のページ切替" hidden>

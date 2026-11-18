@@ -10,6 +10,11 @@
   let state, db, revision = 0, pending = 0, failure = null, busy = false, opponentEdited = false;
   let resetComplete = false;
   let historyPage = 0;
+  const inputOpponentFilter = document.createElement("select");
+  const historyOpponentFilter = document.createElement("select");
+  const filterSources = new WeakMap();
+  let slotCatalog, slotCard;
+  const cardSlotIds = ["cardSlot1", "cardSlot2", "cardSlot3"];
   const resultObservers = [];
   const appScope = new URL("./", document.baseURI).href;
   let offlineSetup = Promise.resolve(), offlineSetupError = null;
@@ -516,11 +521,10 @@
   }
   function renderCatalogWarnings() {
     $("catalogWarnings").textContent = C.warnings(state.settings, state.draft.values).join("\n");
-    $("saveCardRank").hidden = !C.selectedCard(state.settings, state.draft.values);
     const card = C.selectedCard(state.settings, state.draft.values);
+    $("saveCardRank").hidden = !card;
     renderCardTeam(card);
-    $("entryCardPanel").hidden = !card;
-    renderCardInfo("entryCardInfo", card?.id);
+    renderCardSlots(card);
   }
   function renderCardTeam(card) {
     const select = $("cardTeam");
@@ -541,12 +545,34 @@
       ? `チーム番号：${selectedTeam?.number || "未登録"} / 所属店舗：${selectedTeam?.homeStoreLabel || "未登録"}` : "";
     fitResult("cardTeamDetails");
   }
-  function renderCardInfo(containerId, cardId) {
-    const container = $(containerId);
-    container.replaceChildren();
-    const info = C.cardInfo(state.settings, cardId);
-    if (!info.length) return;
-    container.append(settingsTable(info));
+  function renderCardSlots(card) {
+    const catalog = state.settings.catalog;
+    $("cardSlotEditor").hidden = !card;
+    if (slotCatalog === catalog && slotCard === card) return;
+    slotCatalog = catalog;
+    slotCard = card;
+    $("cardSlotStatus").textContent = "";
+    $("saveCardSlots").disabled = true;
+    if (!card) return;
+    const byId = new Map(catalog.common.vehicles.map(vehicle => [vehicle.id, vehicle]));
+    const garageIds = [...new Set(card.garage.map(slot => slot.vehicleId))];
+    const garageSet = new Set(garageIds);
+    const groups = [
+      ["車庫", garageIds.map(id => byId.get(id))],
+      ["全車種（車庫以外）", catalog.common.vehicles.filter(vehicle => !garageSet.has(vehicle.id))]
+    ];
+    for (const [index, id] of cardSlotIds.entries()) {
+      const select = $(id);
+      select.replaceChildren(new Option("未登録", ""));
+      for (const [title, vehicles] of groups) {
+        if (!vehicles.length) continue;
+        const group = document.createElement("optgroup");
+        group.label = title;
+        for (const vehicle of vehicles) group.append(new Option(vehicle.label, vehicle.id));
+        select.append(group);
+      }
+      select.value = card.activeSlots.find(slot => slot.slot === index + 1)?.vehicleId || "";
+    }
   }
   function settingsTable(rows, headings) {
     const table = document.createElement("table");
@@ -677,7 +703,7 @@
   function isAppRecord(record) {
     return !record.id.startsWith("excel-datano:");
   }
-  function recordsTable(records, showAffiliation, matches = new Map(), winRates = new Map()) {
+  function recordsTable(records, showAffiliation, matches = new Map(), winRates = new Map(), opponentFilter = null) {
     const columns = [
       ["日付", r => [r.opponentConfirmedAt ? M.matchDateTime(r) : r.values.date,
         [r.values.season, r.values.round].filter(Boolean).join(" / "),
@@ -713,6 +739,7 @@
       const th = document.createElement("th");
       th.scope = "col";
       th.textContent = label;
+      if (label === "相手" && opponentFilter) th.append(opponentFilter);
       header.append(th);
     }
     const body = table.createTBody();
@@ -797,14 +824,37 @@
     $("history").append(summary, recordsTable(records.slice(0, 10), false));
   }
   function renderInputRecords() {
+    if (resetComplete) return;
     const all = state.records.filter(isAppRecord);
-    const filter = M.opponentNameFilter($("inputOpponentFilter").value);
+    updateOpponentFilter(inputOpponentFilter, all);
+    const filter = M.opponentNameFilter(inputOpponentFilter.value);
     const appRecords = all.filter(filter).reverse();
     const winRates = M.opponentWinRates(state.records, state.settings.shopAliases, appRecords);
     const count = appRecords.length.toLocaleString("ja-JP");
     $("inputRecordCount").textContent = appRecords.length === all.length ? `(${count}件)`
       : `(${count} / ${all.length.toLocaleString("ja-JP")}件)`;
-    $("inputRecordList").replaceChildren(recordsTable(appRecords, true, new Map(), winRates));
+    renderFilteredTable("inputRecordList", appRecords, undefined, winRates, inputOpponentFilter);
+  }
+  function updateOpponentFilter(select, records) {
+    if (filterSources.get(select) === state.records) return;
+    filterSources.set(select, state.records);
+    const previous = select.value;
+    const names = [...new Set(records.map(record => record.values.opponent).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "ja"));
+    const options = document.createDocumentFragment();
+    options.append(new Option("すべて", ""));
+    for (const name of names) options.append(new Option(name, name));
+    select.replaceChildren(options);
+    select.value = names.includes(previous) ? previous : "";
+  }
+  function renderFilteredTable(id, rows, matches, rates, filter) {
+    const container = $(id);
+    const left = container.firstElementChild?.scrollLeft || 0;
+    const focused = document.activeElement === filter;
+    const wrapper = recordsTable(rows, true, matches, rates, filter);
+    container.replaceChildren(wrapper);
+    wrapper.scrollLeft = left;
+    if (focused) filter.focus({ preventScroll: true });
   }
   function renderRecords() {
     if (resetComplete) return;
@@ -820,8 +870,9 @@
       $("historyPages").hidden = true;
       return;
     }
+    updateOpponentFilter(historyOpponentFilter, state.records);
     const query = $("search").value.trim();
-    const opponent = $("historyOpponentFilter").value.trim();
+    const opponent = historyOpponentFilter.value;
     const result = M.recordHistoryPage(state.records, query, historyPage, opponent);
     historyPage = result.page;
     const count = value => value.toLocaleString("ja-JP");
@@ -833,12 +884,8 @@
     $("historyPrevious").disabled = historyPage === 0;
     $("historyNext").disabled = historyPage === result.lastPage;
     $("historyPageNumber").textContent = `${count(historyPage + 1)} / ${count(result.lastPage + 1)}ページ`;
-    if (!result.rows.length) {
-      $("recordList").replaceChildren();
-      return;
-    }
     const rates = M.opponentWinRates(state.records, state.settings.shopAliases, result.rows);
-    $("recordList").replaceChildren(recordsTable(result.rows, true, result.matches, rates));
+    renderFilteredTable("recordList", result.rows, result.matches, rates, historyOpponentFilter);
   }
   function changeHistoryPage(step, button) {
     historyPage += step;
@@ -944,6 +991,11 @@
     state = null;
     masterPreview = null;
     masterFiles = [];
+    slotCatalog = slotCard = null;
+    filterSources.delete(inputOpponentFilter);
+    filterSources.delete(historyOpponentFilter);
+    inputOpponentFilter.replaceChildren();
+    historyOpponentFilter.replaceChildren();
     const main = document.querySelector("main");
     const heading = document.createElement("h2");
     heading.textContent = "このアプリの端末内データを初期化しました";
@@ -1133,14 +1185,22 @@
   $("savedRecords").ontoggle = () => renderSavedRecords();
   $("historyPrevious").onclick = event => changeHistoryPage(-1, event.currentTarget);
   $("historyNext").onclick = event => changeHistoryPage(1, event.currentTarget);
-  $("inputOpponentFilter").oninput = renderInputRecords;
-  $("historyOpponentFilter").oninput = () => {
+  for (const [filter, title, list] of [
+    [inputOpponentFilter, "入力記録の相手で絞り込み", "inputRecordList"],
+    [historyOpponentFilter, "過去実績の相手で絞り込み", "recordList"]
+  ]) {
+    filter.className = "opponent-column-filter";
+    filter.setAttribute("aria-label", title);
+    filter.setAttribute("aria-controls", list);
+  }
+  inputOpponentFilter.onchange = renderInputRecords;
+  historyOpponentFilter.onchange = () => {
     historyPage = 0;
     renderSavedRecords();
   };
   $("search").oninput = () => {
     historyPage = 0;
-    const open = Boolean($("search").value.trim() || $("historyOpponentFilter").value.trim());
+    const open = Boolean($("search").value.trim() || historyOpponentFilter.value);
     if ($("savedRecords").open !== open) $("savedRecords").open = open;
     else renderSavedRecords();
   };
@@ -1155,6 +1215,34 @@
       state = next;
     }).then(() => renderCatalogWarnings());
   };
+  for (const id of cardSlotIds) {
+    $(id).onchange = () => {
+      $("saveCardSlots").disabled = !cardSlotIds.some((key, i) =>
+        $(key).value !== (slotCard?.activeSlots.find(slot => slot.slot === i + 1)?.vehicleId || ""));
+      $("cardSlotStatus").textContent = $("saveCardSlots").disabled ? "" : "未保存のスロット変更があります。";
+    };
+  }
+  $("saveCardSlots").onclick = () => run(async () => {
+    const card = C.selectedCard(state.settings, state.draft.values);
+    if (!card || card !== slotCard) throw new Error("登録カードを選択し直してください。");
+    const vehicleIds = cardSlotIds.map(id => $(id).value);
+    let settings;
+    try { settings = C.updateCardSlots(state.settings, card.id, vehicleIds); }
+    catch (error) {
+      $("cardSlotStatus").textContent = error.message;
+      throw error;
+    }
+    const values = state.draft.values;
+    const car = C.choices(settings, "car", values).includes(values.car) ? values.car : "";
+    const next = { ...state, settings, draft: { ...state.draft, values: { ...values, car } } };
+    await persist(next);
+    state = next;
+    renderDropdown("car");
+    renderCatalogWarnings();
+    $("cardSlotStatus").textContent = values.car && !car
+      ? "保存しました。現在の入力の自車種を選び直してください。"
+      : "スロット変更を端末に保存しました。";
+  });
   $("roundSeason").onchange = renderRoundChoices;
   $("roundSelector").onchange = renderRoundCourses;
   $("opponentTeamSearch").oninput = renderOpponentTeams;

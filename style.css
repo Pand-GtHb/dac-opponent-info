@@ -62,7 +62,9 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 .notice, .panel, article { background: white; padding: 14px; border-radius: 10px; margin: 12px 0; overflow-wrap: anywhere; }
 .notice { border-left: 4px solid #ad7300; font-size: .9rem; }
 .hint { font-size: .85rem; color: #4a6158; line-height: 1.45; margin-block: .4em; }
-label.opponent-filter { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+.card-slots label { grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; }
+.card-slots .field-caption { padding-top: 0; }
+#cardSlotStatus:empty { display: none; }
 .settings-section, .section-content { margin-left: clamp(.5rem, 2vw, 1.25rem); }
 .export-date-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 .export-date-range label { min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 4px; }
@@ -84,19 +86,14 @@ label.opponent-filter { grid-template-columns: auto minmax(0, 1fr); align-items:
 #error { background: #fff1ef; color: #9c2013; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 #status { display: block; margin-top: 8px; }
 summary { padding: 7px 0; cursor: pointer; }
-#entryCardPanel > summary, #affiliationFields > summary { list-style: none; }
-#entryCardPanel > summary::-webkit-details-marker, #affiliationFields > summary::-webkit-details-marker { display: none; }
-#entryCardPanel > summary::before, #affiliationFields > summary::before {
+#affiliationFields > summary { list-style: none; }
+#affiliationFields > summary::-webkit-details-marker { display: none; }
+#affiliationFields > summary::before {
   content: "\25b6"; display: inline-block; width: 1rem; font-size: .75em;
 }
-#entryCardPanel[open] > summary::before, #affiliationFields[open] > summary::before { content: "\25bc"; }
+#affiliationFields[open] > summary::before { content: "\25bc"; }
 #affiliationFields > summary { margin-left: calc(5.5rem + 8px); }
-details#entryCardPanel > #entryCardInfo { margin-left: 1rem; }
 details#affiliationFields > #extraFields { margin-left: calc(5.5rem + 8px + 1rem); }
-@media (min-width: 760px) {
-  #entryCardPanel > summary { margin-left: calc(5.5rem + 8px); }
-  details#entryCardPanel > #entryCardInfo { margin-left: calc(5.5rem + 8px + 1rem); }
-}
 @media (max-width: 360px) {
   #affiliationFields > summary { margin-left: calc(4.5rem + 8px); }
   details#affiliationFields > #extraFields { margin-left: calc(4.5rem + 8px + 1rem); }
@@ -105,13 +102,15 @@ details > :not(summary) { margin-left: 1rem; }
 details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 .settings-table { border-collapse: collapse; width: 100%; table-layout: fixed; margin: 10px 0; font-size: .9rem; }
 .settings-table th, .settings-table td { border: 1px solid #879d94; padding: 8px; text-align: left; overflow-wrap: anywhere; white-space: pre-line; }
+.settings-table thead th { text-align: center; }
 .settings-table th { background: #e5eeea; }
 .card-info th { width: 8rem; white-space: nowrap; }
 .settings-table select, .settings-table input { padding: 5px 4px; min-width: 0; }
 .records-table-scroll { max-width: 100%; overflow-x: auto; }
 .records-table { border-collapse: collapse; min-width: 100%; background: white; font-size: .9rem; }
 .records-table th, .records-table td { border: 1px solid #879d94; padding: 8px; text-align: left; vertical-align: top; }
-.records-table th { background: #e5eeea; white-space: nowrap; }
+.records-table th { background: #e5eeea; white-space: nowrap; text-align: center; vertical-align: middle; }
+.records-table .opponent-column-filter { display: block; width: 7rem; margin: 3px auto 0; padding-inline: 3px; }
 .records-table td { min-width: 5rem; max-width: 16rem; white-space: pre-line; overflow-wrap: anywhere; }
 .records-table tr.record-win { background: #d3e6ff; }
 .records-table tr.record-provisional { color: #824100; }

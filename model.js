@@ -42,9 +42,8 @@
     }
     return matches;
   }
-  function opponentNameFilter(input) {
-    const query = normalizeSearch(input.trim());
-    return query ? record => normalizeSearch(record.values.opponent).includes(query) : () => true;
+  function opponentNameFilter(name) {
+    return name ? record => record.values.opponent === name : () => true;
   }
   function recordHistoryPage(records, input, requestedPage, opponent = "") {
     const pageSize = 50;
