@@ -41,15 +41,23 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 .full-width { grid-column: 1 / -1; }
 .session-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
 .session-fields > div, #primaryFields > div { min-width: 0; }
+.session-fields label { grid-template-columns: auto minmax(0, 1fr); gap: 3px; align-items: start; }
+.session-fields .field-caption { white-space: nowrap; }
+#primaryFields > [data-field="car"], #primaryFields > [data-field="opponentCar"] { grid-column: 1 / -1; }
+#primaryFields > [data-field="car"] > label, #primaryFields > [data-field="opponentCar"] > label {
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+}
+.player-search-row, #primaryFields > [data-field="nameNote"] > label { grid-template-columns: minmax(0, 4.5rem) minmax(0, 1fr); }
 @media (max-width: 759px) {
-  .session-fields label, .grid > div:not(.full-width) > label {
-    grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(1.25em, auto) auto; gap: 2px;
+  .grid > div:not(.full-width) > label {
+    grid-template-columns: auto minmax(0, 1fr); gap: 3px;
   }
-  @media (max-width: 759px) {
-  }
-  .session-fields .field-caption, .grid > div:not(.full-width) > label > .field-caption { padding-top: 0; white-space: normal; }
+  .session-fields .field-caption, .grid > div:not(.full-width) > label > .field-caption { padding-top: 7px; white-space: nowrap; }
   .session-fields input, .session-fields select { padding: 5px 3px; font-size: .8rem; }
-  .session-fields { column-gap: 6px; }
+  .session-fields { column-gap: 4px; }
+  #roundFields { grid-template-columns: 1.3fr 1fr 1fr; }
+  .session-fields #dateCalendar { flex-basis: 20px; width: 20px; padding: 0; }
+  #primaryFields > [data-field="nameNote"] > label { grid-template-columns: auto minmax(0, 1fr); }
   details#affiliationFields > #extraFields { margin-left: .5rem; }
 }
 @media (min-width: 760px) {
@@ -63,7 +71,7 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 .notice { border-left: 4px solid #ad7300; font-size: .9rem; }
 .hint { font-size: .85rem; color: #4a6158; line-height: 1.45; margin-block: .4em; }
 .card-slots button { min-width: 0; overflow-wrap: anywhere; }
-.card-slots button span { display: block; font-size: .85rem; }
+.card-slots button { min-height: 32px; padding-block: 3px; }
 #cardVehiclePicker { width: min(28rem, calc(100% - 24px)); max-height: 85dvh; border: 1px solid #879d94; border-radius: 8px; }
 #cardVehiclePicker::backdrop { background: #0006; }
 #cardVehiclePicker h3 { margin: 0 0 6px; }

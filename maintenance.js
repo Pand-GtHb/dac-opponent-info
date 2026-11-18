@@ -1,6 +1,6 @@
 (function (root) {
   "use strict";
-  const version = 104;
+  const version = 105;
   const currentCache = `dac-record-poc-v${version}`;
   const isAppCache = name => /^dac-record-poc-v\d+$/.test(name);
   async function cacheNames() {

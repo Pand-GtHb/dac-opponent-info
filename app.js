@@ -562,9 +562,8 @@
     slotVehicleIds = selected;
     for (const [index, id] of cardSlotIds.entries()) {
       const label = slotCatalog.common.vehicles.find(vehicle => vehicle.id === selected[index])?.label || "未登録";
-      const caption = document.createElement("span");
-      caption.textContent = `スロット${index + 1}`;
-      $(id).replaceChildren(caption, document.createTextNode(label));
+      $(id).textContent = label;
+      $(id).setAttribute("aria-label", `スロット${index + 1}：${label}`);
     }
     const changed = selected.some((id, i) => id !== (slotCard.activeSlots.find(slot => slot.slot === i + 1)?.vehicleId || ""));
     $("saveCardSlots").disabled = !changed;
