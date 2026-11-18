@@ -11,8 +11,8 @@
   <script defer src="./catalog.js?v=89"></script>
   <script defer src="./model.js?v=99"></script>
   <script defer src="./storage.js?v=98"></script>
-  <script defer src="./maintenance.js?v=99"></script>
-  <script defer src="./app.js?v=99"></script>
+  <script defer src="./maintenance.js?v=100"></script>
+  <script defer src="./app.js?v=100"></script>
 </head>
 <body>
 <header><h1>DAC 対戦記録 <small>PoC</small></h1>
@@ -128,18 +128,19 @@
       <h3>（３）内容を確認して反映</h3>
       <p id="masterSelectionInfo" role="status"></p>
       <button type="button" id="previewMasters" disabled>内容を確認</button>
+      <p id="masterInfo" role="status"></p>
+      <form id="masterPreview" hidden>
+        <h4 id="masterPreviewHeading" tabindex="-1">取り込み内容の確認結果</h4>
+        <div id="masterDiffs"></div>
+        <button type="submit">選択した内容を反映</button>
+        <button type="button" id="cancelMasters">取り込みを中止</button>
+      </form>
       </section>
     </fieldset>
     <p class="hint">日次更新・全数更新はチェックの選択だけを変更します。選択した種類はJSONの内容で置き換え、JSONにない旧データは削除します。未選択の種類は変更しません。初回は対戦履歴以外の設定マスターがすべて必要です。アプリの新規記録・下書きは保持し、同じ仮No.が正式記録に含まれる場合だけExcelの内容で正式登録へ移行します。</p>
     <p class="hint">ファイルを追加しただけでは保存内容は変わりません。カード差分と参照先を確認してから反映します。対戦下書き・未適用の設定編集は保持します。初回設定時だけ、下書きの未入力のシーズン・ラウンドを日付から補完します。</p>
     <p class="hint">以前の未適用の設定編集はバックアップに残りますが、この画面では適用できません。必要な変更はマスター側で登録してください。</p>
     <p class="hint">以前アプリで編集したカード・チームも、該当マスターを取り込むとExcelの内容で置き換わります。</p>
-    <p id="masterInfo" role="status"></p>
-    <form id="masterPreview" hidden>
-      <div id="masterDiffs"></div>
-      <button type="submit">選択した内容を反映</button>
-      <button type="button" id="cancelMasters">取り込みを中止</button>
-    </form>
     <p id="catalogInfo" role="status"></p>
     <details><summary>ラウンド別の対象コースを確認</summary>
       <label>シーズン<select id="roundSeason"></select></label>

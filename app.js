@@ -1292,6 +1292,11 @@
         (historyResult ? ` ${historyReplacementText(historyResult)}` : "") +
         " 入力途中の下書きは保持します。";
       $("masterPreview").hidden = false;
+      if (!$("settings").hidden) {
+        const heading = $("masterPreviewHeading");
+        heading.focus({ preventScroll: true });
+        $("masterInfo").scrollIntoView({ block: "center" });
+      }
     });
   };
   renderMasterSelection();
