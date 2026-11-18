@@ -1,0 +1,151 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #172f29; background: #eef4f1; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+header { background: #14634c; color: white; padding: 18px max(16px, calc((100% - 900px) / 2)); }
+h1 { margin: 0; font-size: 1.4rem; }
+h2 { font-size: 1.15rem; }
+small { font-size: .75rem; }
+main { max-width: 932px; margin: auto; padding: 16px; }
+nav { display: flex; gap: 8px; position: sticky; top: 0; background: #eef4f1; padding: 12px 0; z-index: 1; }
+nav button { flex: 1; }
+button, input, select, textarea { font: inherit; border: 1px solid #879d94; border-radius: 8px; padding: 11px; }
+input, select, textarea { width: 100%; background: white; color: #172f29; min-height: 46px; }
+textarea { resize: vertical; }
+button { background: white; color: #174e3d; min-height: 46px; cursor: pointer; margin: 4px 0; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.primary, nav button[aria-pressed="true"] { background: #14634c; color: white; }
+label, .player-search-row { display: grid; grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr); align-items: start; gap: 8px; margin: 6px 0; font-weight: 600; }
+.field-caption { padding-top: 11px; font-size: .9rem; overflow-wrap: anywhere; }
+.field-controls { display: block; min-width: 0; }
+.date-control { display: flex; align-items: stretch; min-width: 0; }
+.date-control > input:first-child { flex: 1; width: 0; border-radius: 8px 0 0 8px; }
+.session-fields #dateCalendar { flex: 0 0 30px; width: 30px; padding: 3px; border-left: 0; border-radius: 0 8px 8px 0; color: transparent; position: relative; }
+#dateCalendar::-webkit-datetime-edit { display: none; }
+#dateCalendar::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; margin: 0; cursor: pointer; background-position: center; }
+.star-combo { display: block; position: relative; }
+.star-combo input { padding-right: 28px; }
+.star-combo::after { content: "\25be"; position: absolute; right: 10px; top: 12px; pointer-events: none; }
+.star-options { position: absolute; top: 100%; left: 0; width: 100%; z-index: 3; max-height: 240px; overflow-y: auto; background: white; border: 1px solid #879d94; border-radius: 8px; box-shadow: 0 4px 12px #0002; font-weight: 400; }
+.star-options > span { display: block; padding: 10px; cursor: pointer; }
+.star-options > span:hover, .star-options > span[aria-selected="true"] { background: #e5efff; }
+label input, label select, label textarea { display: block; min-width: 0; margin: 0; font-weight: 400; }
+.field-controls > select + input { margin-top: 4px; }
+.opponent-car-controls { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 4px; }
+.opponent-car-controls select { min-width: 0; padding: 8px 3px; font-size: .85rem; }
+.field-controls .hint { display: block; margin: 4px 0 0; font-weight: 400; }
+input[type="file"] { font-size: .8rem; }
+fieldset { padding: 0; border: 0; min-width: 0; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 16px; }
+.full-width { grid-column: 1 / -1; }
+.session-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+.session-fields > div, #primaryFields > div { min-width: 0; }
+@media (max-width: 759px) {
+  .session-fields label { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .session-fields .field-caption { padding-top: 0; }
+  .session-fields input, .session-fields select { padding: 8px 3px; font-size: .8rem; }
+}
+@media (min-width: 760px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #extraFields { grid-template-columns: minmax(0, 13.5rem) minmax(0, 1fr); }
+}
+@media (max-width: 360px) {
+  label, .player-search-row { grid-template-columns: minmax(0, 4.5rem) minmax(0, 1fr); }
+}
+.notice, .panel, article { background: white; padding: 14px; border-radius: 10px; margin: 12px 0; overflow-wrap: anywhere; }
+.notice { border-left: 4px solid #ad7300; font-size: .9rem; }
+.hint { font-size: .85rem; color: #4a6158; line-height: 1.6; }
+.settings-section, .section-content { margin-left: clamp(.5rem, 2vw, 1.25rem); }
+.export-date-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.export-date-range label { min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.export-date-range .field-caption { padding-top: 0; }
+.two-line-caption > .field-caption { white-space: pre-line; }
+.historical-note { font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.master-step { margin: 1rem 0; padding-left: .75rem; border-left: 2px solid #d5e2dc; }
+.master-step > h3 { font-size: 1rem; margin: .75rem 0; }
+.maintenance-info { white-space: pre-line; overflow-wrap: anywhere; }
+.danger { color: #9c2013; border-color: #9c2013; }
+#diagnostics { font-size: .85rem; }
+.master-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 4px 12px; }
+.master-choice { background: white; border-radius: 8px; padding: 8px; min-width: 0; }
+.master-choices label { display: flex; align-items: center; margin: 0; flex-wrap: wrap; }
+.master-choices input { width: 20px; min-height: 20px; flex: 0 0 20px; }
+.master-choices small { margin-left: auto; font-weight: 400; }
+.master-file-controls { display: flex; flex-wrap: wrap; gap: 4px; }
+.master-file-controls button { min-height: 32px; padding: 4px 8px; font-size: .75rem; overflow-wrap: anywhere; max-width: 100%; }
+#error { background: #fff1ef; color: #9c2013; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+#status { display: block; }
+summary { padding: 14px 0; cursor: pointer; }
+#entryCardPanel > summary, #affiliationFields > summary { list-style: none; }
+#entryCardPanel > summary::-webkit-details-marker, #affiliationFields > summary::-webkit-details-marker { display: none; }
+#entryCardPanel > summary::before, #affiliationFields > summary::before {
+  content: "\25b6"; display: inline-block; width: 1rem; font-size: .75em;
+}
+#entryCardPanel[open] > summary::before, #affiliationFields[open] > summary::before { content: "\25bc"; }
+#affiliationFields > summary { margin-left: calc(5.5rem + 8px); }
+details#entryCardPanel > #entryCardInfo { margin-left: 1rem; }
+details#affiliationFields > #extraFields { margin-left: calc(5.5rem + 8px + 1rem); }
+@media (min-width: 760px) {
+  #entryCardPanel > summary { margin-left: calc(5.5rem + 8px); }
+  details#entryCardPanel > #entryCardInfo { margin-left: calc(5.5rem + 8px + 1rem); }
+}
+@media (max-width: 360px) {
+  #affiliationFields > summary { margin-left: calc(4.5rem + 8px); }
+  details#affiliationFields > #extraFields { margin-left: calc(4.5rem + 8px + 1rem); }
+}
+details > :not(summary) { margin-left: 1rem; }
+details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
+.settings-table { border-collapse: collapse; width: 100%; table-layout: fixed; margin: 10px 0; font-size: .9rem; }
+.settings-table th, .settings-table td { border: 1px solid #879d94; padding: 8px; text-align: left; overflow-wrap: anywhere; white-space: pre-line; }
+.settings-table th { background: #e5eeea; }
+.card-info th { width: 8rem; white-space: nowrap; }
+.settings-table select { padding: 8px 4px; min-width: 0; }
+.settings-table input { padding: 8px 4px; min-width: 0; }
+.records-table-scroll { max-width: 100%; overflow-x: auto; }
+.records-table { border-collapse: collapse; min-width: 100%; background: white; font-size: .9rem; }
+.records-table th, .records-table td { border: 1px solid #879d94; padding: 8px; text-align: left; vertical-align: top; }
+.records-table th { background: #e5eeea; white-space: nowrap; }
+.records-table td { min-width: 5rem; max-width: 16rem; white-space: pre-line; overflow-wrap: anywhere; }
+.records-table tr.record-win { background: #d3e6ff; }
+.records-table tr.record-provisional { color: #824100; }
+.records-table mark { background: #ffe272; color: inherit; }
+.course-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 16px; align-items: start; border-radius: 8px; }
+#primaryFields { border-radius: 8px; }
+#primaryFields.current-win { background: #d3e6ff; }
+.course-field { display: grid; grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr); gap: 8px; margin: 6px 0; }
+.course-heading { min-width: 0; }
+.course-heading > .field-caption { display: block; font-weight: 600; }
+#courseChoice .checkbox-field { gap: 3px; margin: 0; min-height: 36px; }
+#courseChoice .field-caption { font-size: .8rem; }
+#courseChoice input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; }
+@media (min-width: 760px) {
+  .course-block { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 360px) {
+  .course-field { grid-template-columns: minmax(0, 4.5rem) minmax(0, 1fr); }
+}
+.course-block > [data-field="course"] { min-width: 0; }
+#courseResult, #opponentResult, #cardTeamDetails { min-width: 0; margin: 4px 0 0; white-space: nowrap; overflow-x: auto; font-size: .9rem; font-weight: 400; }
+#courseResult { overflow: hidden; }
+.checkbox-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.checkbox-field { display: flex; align-items: center; gap: 6px; min-height: 46px; cursor: pointer; margin: 6px 0; }
+.checkbox-field .field-caption { padding: 0; }
+.checkbox-field input[type="checkbox"] { width: 22px; height: 22px; min-height: 22px; margin: 0; cursor: pointer; accent-color: #14634c; }
+.win-toggle, .save-entry { width: 100%; min-height: 54px; }
+.entry-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+#quickCsv { margin-left: auto; min-height: 54px; }
+.win-toggle { font-size: 1.15rem; border: 1px solid #879d94; background: #fff; }
+.win-toggle[aria-pressed="true"] { background: #235ac4; border-color: #235ac4; color: white; }
+@media (max-width: 400px) {
+  .course-conditions { gap: 0 6px; }
+  .course-conditions .checkbox-field { gap: 3px; }
+}
+.table-scroll { max-height: 28rem; overflow: auto; }
+:focus-visible { outline: 3px solid #e08b00; outline-offset: 2px; }
+[hidden] { display: none !important; }
+.suggestions { max-height: 240px; overflow-y: auto; font-size: .9rem; font-weight: 400; }
+.suggestions button { display: block; width: 100%; text-align: left; overflow-wrap: anywhere; }
+.suggestions button:focus { background: #e5efff; border-color: #235ac4; }
+#field-course.previous-win { background: #e5efff; color: #123f9a; border-color: #235ac4; }
+#field-course.previous-loss { background: #ffe8e8; color: #a01515; border-color: #bf3030; }
+.player-search-row > button { margin: 0; padding: 11px 4px; font-size: .9rem; font-weight: 600; }
+.player-search-row > input { min-width: 0; }

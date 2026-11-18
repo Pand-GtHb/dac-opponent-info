@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#14634c">
+  <title>DAC 対戦記録 PoC</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=98">
+  <script defer src="./catalog.js?v=89"></script>
+  <script defer src="./model.js?v=97"></script>
+  <script defer src="./storage.js?v=98"></script>
+  <script defer src="./maintenance.js?v=98"></script>
+  <script defer src="./app.js?v=98"></script>
+</head>
+<body>
+<header><h1>DAC 対戦記録 <small>PoC</small></h1>
+  <p>端末内保存版・サーバー送信なし</p>
+  <strong id="status" role="status" aria-live="polite">読み込み中…</strong>
+  <p id="error" role="alert" hidden></p>
+</header>
+<main>
+  <aside class="notice">この端末・ブラウザ・URLに保存します。リロードから復元できますが、サイトデータ削除や端末故障にはバックアップが必要です。CSVは自動追記ではなくダウンロード出力です。</aside>
+  <nav aria-label="画面切り替え">
+    <button type="button" data-tab="entry" aria-pressed="true">入力</button>
+    <button type="button" data-tab="records" aria-pressed="false">記録・保存</button>
+    <button type="button" data-tab="settings" aria-pressed="false">設定・バックアップ</button>
+  </nav>
+  <section id="entry">
+    <h2 id="entryTitle" hidden></h2>
+    <form id="entryForm">
+      <fieldset id="entryFields" disabled>
+        <section>
+          <h2>１．ラウンド情報</h2>
+          <div class="section-content">
+            <div id="roundFields" class="session-fields"></div>
+            <p id="opponentTimeInfo" class="hint" role="status" hidden></p>
+          </div>
+        </section>
+        <section>
+          <h2>２．カード情報</h2>
+          <div class="section-content">
+            <div id="cardFields" class="session-fields"></div>
+            <details id="entryCardPanel" hidden><summary>選択カードの情報</summary><div id="entryCardInfo"></div></details>
+            <button type="button" id="saveCardRank" hidden>表示中の自ランク・星をカード設定に保存</button>
+            <p id="catalogWarnings" class="hint" role="status"></p>
+          </div>
+        </section>
+        <section>
+          <h2>３．対戦情報</h2>
+          <div class="section-content">
+            <p id="pasteInfo" class="hint" role="status"></p>
+            <div id="primaryFields" class="grid"></div>
+            <details id="affiliationFields" class="full-width"><summary>所属情報</summary><div id="extraFields" class="grid"></div></details>
+            <button type="submit" id="saveEntry" class="primary save-entry" aria-live="polite">この対戦を保存</button>
+            <div class="entry-actions">
+              <button type="button" id="newEntry">現在の下書きを破棄して新規入力</button>
+              <button type="button" id="quickCsv">CSV出力</button>
+            </div>
+            <p class="hint">CSV出力はExcel未反映の保存済み記録を全件ダウンロードします。入力途中は含みません。再出力時はX列の仮No.で二重転記を確認してください。</p>
+            <p id="quickCsvInfo" role="status"></p>
+          </div>
+        </section>
+      </fieldset>
+    </form>
+    <section><h2>４．対戦実績</h2>
+      <div id="history" class="section-content"></div>
+    </section>
+  </section>
+  <section id="records" hidden>
+    <h2>１．入力記録 <span id="inputRecordCount"></span></h2>
+    <div class="section-content">
+      <p class="hint">Excel未反映のアプリ仮登録を表示します。入力途中の下書きは含みません。</p>
+      <div id="inputRecordList"></div>
+    </div>
+    <h2>２．保存</h2>
+    <div class="section-content">
+    <fieldset id="excelExportFields" disabled>
+      <legend>Excel貼り付け用CSV（Ｄシート A～Y列）</legend>
+      <div class="export-date-range">
+        <label>開始日（省略可）<input id="excelFrom" type="date"></label>
+        <label>終了日（省略可）<input id="excelTo" type="date"></label>
+      </div>
+      <p class="hint">アプリ形式の対戦IDで保存された記録が対象です（再取込分を含み、Excel由来の正式Data_No.付き記録は除外）。期間を省略すると対象の全件を出力します。入力途中は含みません。</p>
+      <button type="button" id="excelCsv">Excel貼り付け用CSVを出力</button>
+      <p id="excelCsvInfo" role="status"></p>
+      <p class="hint">CSVをExcelで開き、見出しを除く25列をコピーし、Ｄシートの追記先A列から「値」として貼り付けてください。X列は仮No.、Y列は日時（時刻不明は日付のみ）です。Excelで時刻を見るには表示形式を yyyy/mm/dd hh:mm:ss にしてください。Z列以降には貼り付けません。再出力にも同じ記録を含むため、X列の仮No.で二重転記を確認してください。</p>
+    </fieldset>
+    </div>
+    <h2>３．過去実績</h2>
+    <div class="section-content">
+    <label>名前・エリア・店舗・チーム・メモで絞り込み<input id="search" type="search"></label>
+    <p class="hint">検索すると一覧を開いて検索結果を表示します。検索欄を空にすると閉じます。全件を見る場合は「対戦一覧」を開いてください。</p>
+    <details id="savedRecords">
+      <summary>対戦一覧 <span id="recordCount"></span></summary>
+      <p id="recordSearchInfo" role="status"></p>
+      <p class="hint">「登録No.」列に仮No.または正式なData_No.を表示します。仮登録の行は茶色の文字です。勝ちの行の青い背景は維持します。番号のない旧記録は「—」と表示します。</p>
+      <div id="recordList"></div>
+    </details>
+    </div>
+  </section>
+  <section id="settings" hidden>
+    <h2>１．設定：マスター登録</h2>
+    <div class="settings-section">
+    <fieldset id="masterFields" disabled>
+      <section class="master-step">
+      <h3>（１）取り込む内容</h3>
+      <div>
+        <button type="button" data-master-preset="daily">日次更新</button>
+        <button type="button" data-master-preset="all">全数更新</button>
+        <button type="button" data-master-preset="none">選択を解除</button>
+      </div>
+      <div id="masterChoices" class="master-choices"></div>
+      </section>
+      <section class="master-step">
+      <h3>（２）ファイルを追加</h3>
+      <button type="button" id="addMasterFiles">ファイルを追加</button>
+      <input id="masterFiles" type="file" accept=".json,application/json" multiple hidden>
+      <p class="hint">項目と同じ番号のJSONを選んでください。1つずつでも、まとめてでも追加できます。選択状況は上の各項目に表示します。従来名のファイルも内容から判定します。</p>
+      </section>
+      <section class="master-step">
+      <h3>（３）内容を確認して反映</h3>
+      <p id="masterSelectionInfo" role="status"></p>
+      <button type="button" id="previewMasters" disabled>内容を確認</button>
+      </section>
+    </fieldset>
+    <p class="hint">日次更新・全数更新はチェックの選択だけを変更します。選択した種類はJSONの内容で置き換え、JSONにない旧データは削除します。未選択の種類は変更しません。初回は対戦履歴以外の設定マスターがすべて必要です。アプリの新規記録・下書きは保持し、同じ仮No.が正式記録に含まれる場合だけExcelの内容で正式登録へ移行します。</p>
+    <p class="hint">ファイルを追加しただけでは保存内容は変わりません。カード差分と参照先を確認してから反映します。対戦下書き・未適用の設定編集は保持します。初回設定時だけ、下書きの未入力のシーズン・ラウンドを日付から補完します。</p>
+    <p class="hint">以前の未適用の設定編集はバックアップに残りますが、この画面では適用できません。必要な変更はマスター側で登録してください。</p>
+    <p class="hint">以前アプリで編集したカード・チームも、該当マスターを取り込むとExcelの内容で置き換わります。</p>
+    <p id="masterInfo" role="status"></p>
+    <form id="masterPreview" hidden>
+      <div id="masterDiffs"></div>
+      <button type="submit">選択した内容を反映</button>
+      <button type="button" id="cancelMasters">取り込みを中止</button>
+    </form>
+    <p id="catalogInfo" role="status"></p>
+    <details><summary>ラウンド別の対象コースを確認</summary>
+      <label>シーズン<select id="roundSeason"></select></label>
+      <label>ラウンド<select id="roundSelector"></select></label>
+      <div id="roundCourses"></div>
+    </details>
+    <details><summary>相手チーム・チーム所属店舗</summary>
+      <label>チーム・店舗で絞り込み<input id="opponentTeamSearch" type="search"></label>
+      <div id="opponentTeamList" class="table-scroll"></div>
+      <p class="hint">保存済みの対戦記録から、相手のチームと所属店舗の組を表示します。</p>
+    </details>
+    </div>
+    <h2>２．バックアップ</h2>
+    <div class="settings-section">
+    <p>CSVは保存済み対戦のみ。JSONには下書き・設定も含み、復元に使えます。出力したファイルの保管先を確認してください。</p>
+    <button type="button" id="csv" disabled>集計後CSV v1を出力（入力用）</button>
+    <button type="button" id="backup" disabled>JSONバックアップ</button>
+    <button type="button" id="rescue" disabled>画面内データの救出用JSON</button>
+    <label>対戦履歴JSONを読み込む（マスターは正式記録を置換）<input id="importHistory" type="file" accept=".json,application/json" disabled></label>
+    <p id="importInfo" role="status"></p>
+    <label>対戦記録CSV v1を追加（同一記録の重複を防止）<input id="importHistoryCsv" type="file" accept=".csv,text/csv" disabled></label>
+    <p class="hint">UTF-8 CSV。全27項目・状態を含む専用形式です。集計値の列は取込時に再計算します。</p>
+    <p id="importCsvInfo" role="status"></p>
+    <label>JSONバックアップを復元（現在のデータを置き換えます）<input id="restore" type="file" accept=".json,application/json" disabled></label>
+    <button type="button" id="persist" disabled>端末内ストレージの保持をリクエスト</button>
+    <p id="storageInfo"></p>
+    <p>Excel集計後CSVは付属の変換ツールで対戦記録CSV v1へ変換して追加できます。サーバー同期・自動CSV追記は未実装です。HTTPSで配信するとオフライン起動にも対応します。</p>
+    </div>
+    <h2>３．保守・データ管理</h2>
+    <div class="settings-section">
+      <section class="master-step">
+        <h3>（１）使用状況</h3>
+        <button type="button" id="checkUsage" disabled>使用状況を確認・更新</button>
+        <p id="usageInfo" class="maintenance-info" role="status">ボタンを押すと現在の件数・保存容量の目安・キャッシュ状況を確認できます。</p>
+        <p class="hint">保存容量は動作中のメモリ使用量ではありません。ブラウザ管理の容量には、同じ接続先のほかのアプリの分が含まれる場合があります。</p>
+      </section>
+      <fieldset id="maintenanceFields" disabled>
+        <section class="master-step">
+          <h3>（２）動作のリフレッシュ【データを残す】</h3>
+          <button type="button" id="refreshApp">保存して再読み込み</button>
+          <button type="button" id="cleanCaches">不要な旧版キャッシュを整理</button>
+          <p class="hint">再読み込みは保存完了後に実行し、保存失敗時は中止します。キャッシュ整理では、このアプリの現在版・動作中・更新待ちの版を残し、記録・下書き・設定は消しません。</p>
+        </section>
+        <section class="master-step">
+          <h3>（３）正式な過去記録の消去</h3>
+          <button type="button" id="clearOfficial" class="danger">正式な過去記録だけ消去</button>
+          <p class="hint">正式なData_No.付きの記録だけを消去します。Excel未反映のアプリ入力記録・下書き・設定・仮No.の採番履歴は保持します。履歴検索の再利用には04のマスターを読み込み直してください。</p>
+        </section>
+        <section class="master-step">
+          <h3>（４）完全初期化【取り消せません】</h3>
+          <details>
+            <summary>このアプリの端末内データをすべて消去する</summary>
+            <p>保存済み記録・下書き・設定・採番履歴と、このアプリ用キャッシュ・オフライン登録を消去します。Excelやダウンロード済みファイル、ほかのアプリのデータは消しません。</p>
+            <p class="hint">最初に「２．バックアップ」でJSONバックアップを出力し、ファイルが保管できていることを確認してください。ダウンロード開始だけでは保管完了を確認できません。</p>
+            <label class="plain-label checkbox-field"><input id="resetBackupConfirmed" type="checkbox">最新のJSONバックアップを保管したことを確認しました</label>
+            <label class="plain-label checkbox-field"><input id="resetTabsConfirmed" type="checkbox">このアプリのほかのタブ・ウィンドウをすべて閉じました</label>
+            <button type="button" id="resetApp" class="danger">消去内容を確認して完全初期化</button>
+            <p class="hint">誤った再保存を防ぐため、個人データを含まない更新番号だけは内部に残します。ブラウザのストレージ保持許可や、OS・ほかのアプリのメモリは変更できません。</p>
+          </details>
+        </section>
+      </fieldset>
+      <p id="maintenanceInfo" class="maintenance-info" role="status"></p>
+      <section class="master-step">
+        <h3>（５）困ったとき</h3>
+        <p>動作を止めたい場合は、上部が「端末内保存済み」になったことを確認し、このアプリのタブ・ウィンドウをすべて閉じてください。保存エラー時は先に「画面内データの救出用JSON」を保管してください。メモリの回収時期はブラウザ・OSが管理します。</p>
+        <p>復元は「２．バックアップ」→「JSONバックアップを復元」から行います。現在の内容を置き換えるため、復元前のバックアップも保管してください。</p>
+        <button type="button" id="showDiagnostics" disabled>診断情報を表示・更新</button>
+        <button type="button" id="copyDiagnostics" disabled>表示中の診断情報をコピー</button>
+        <label class="plain-label">診断情報（記録内容・名前・店舗・メモ・ファイル名は含みません）
+          <textarea id="diagnostics" rows="8" readonly></textarea>
+        </label>
+      </section>
+    </div>
+  </section>
+</main>
+</body>
+</html>
