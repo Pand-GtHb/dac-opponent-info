@@ -1,6 +1,6 @@
 "use strict";
-const CACHE = "dac-record-poc-v100";
-const ASSETS = ["./index.html", "./style.css?v=99", "./catalog.js?v=89", "./model.js?v=99", "./storage.js?v=98", "./maintenance.js?v=100", "./app.js?v=100", "./manifest.webmanifest", "./icon.svg"];
+const CACHE = "dac-record-poc-v101";
+const ASSETS = ["./index.html", "./style.css?v=101", "./catalog.js?v=89", "./model.js?v=101", "./storage.js?v=98", "./maintenance.js?v=101", "./app.js?v=101", "./manifest.webmanifest", "./icon.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
 });

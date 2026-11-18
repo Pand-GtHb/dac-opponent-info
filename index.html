@@ -7,22 +7,19 @@
   <title>DAC 対戦記録 PoC</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=99">
+  <link rel="stylesheet" href="./style.css?v=101">
   <script defer src="./catalog.js?v=89"></script>
-  <script defer src="./model.js?v=99"></script>
+  <script defer src="./model.js?v=101"></script>
   <script defer src="./storage.js?v=98"></script>
-  <script defer src="./maintenance.js?v=100"></script>
-  <script defer src="./app.js?v=100"></script>
+  <script defer src="./maintenance.js?v=101"></script>
+  <script defer src="./app.js?v=101"></script>
 </head>
 <body>
-<header><h1>DAC 対戦記録 <small>PoC</small></h1>
-  <p>端末内保存版・サーバー送信なし</p>
-  <strong id="status" role="status" aria-live="polite">読み込み中…</strong>
+<header><h1>DAC 対戦記録 <small>PoC <span id="appVersion"></span></small></h1>
   <p id="error" role="alert" hidden></p>
 </header>
 <main>
-  <aside class="notice">この端末・ブラウザ・URLに保存します。リロードから復元できますが、サイトデータ削除や端末故障にはバックアップが必要です。CSVは自動追記ではなくダウンロード出力です。</aside>
-  <nav aria-label="画面切り替え">
+  <nav class="tabs" aria-label="画面切り替え">
     <button type="button" data-tab="entry" aria-pressed="true">入力</button>
     <button type="button" data-tab="records" aria-pressed="false">記録・保存</button>
     <button type="button" data-tab="settings" aria-pressed="false">設定・バックアップ</button>
@@ -72,6 +69,7 @@
     <h2>１．入力記録 <span id="inputRecordCount"></span></h2>
     <div class="section-content">
       <p class="hint">Excel未反映のアプリ仮登録を表示します。入力途中の下書きは含みません。</p>
+      <label class="opponent-filter">相手列で絞り込み<input id="inputOpponentFilter" type="search" aria-controls="inputRecordList"></label>
       <div id="inputRecordList"></div>
     </div>
     <h2>２．保存</h2>
@@ -91,9 +89,10 @@
     <h2>３．過去実績</h2>
     <div class="section-content">
     <label>名前・エリア・店舗・チーム・メモで絞り込み<input id="search" type="search"></label>
-    <p class="hint">検索は全件が対象です。一覧は50件ずつ表示します。検索欄を空にすると閉じます。</p>
+    <p class="hint">検索・相手列の絞り込みは全件が対象です。一覧は50件ずつ表示します。</p>
     <details id="savedRecords">
       <summary>対戦一覧 <span id="recordCount"></span></summary>
+      <label class="opponent-filter">相手列で絞り込み<input id="historyOpponentFilter" type="search" aria-controls="recordList"></label>
       <p id="recordSearchInfo" role="status"></p>
       <p class="hint">「登録No.」列に仮No.または正式なData_No.を表示します。仮登録の行は茶色の文字です。勝ちの行の青い背景は維持します。番号のない旧記録は「—」と表示します。</p>
       <nav id="historyPages" aria-label="過去実績のページ切替" hidden>
@@ -154,6 +153,7 @@
     </details>
     </div>
     <h2>２．バックアップ</h2>
+    <aside class="notice">この端末のブラウザに保存します。サイトデータの削除や端末故障に備えてバックアップしてください。CSVはダウンロード出力です。</aside>
     <div class="settings-section">
     <p>CSVは保存済み対戦のみ。JSONには下書き・設定も含み、復元に使えます。出力したファイルの保管先を確認してください。</p>
     <button type="button" id="csv" disabled>集計後CSV v1を出力（入力用）</button>
@@ -205,7 +205,7 @@
       <p id="maintenanceInfo" class="maintenance-info" role="status"></p>
       <section class="master-step">
         <h3>（５）困ったとき</h3>
-        <p>動作を止めたい場合は、上部が「端末内保存済み」になったことを確認し、このアプリのタブ・ウィンドウをすべて閉じてください。保存エラー時は先に「画面内データの救出用JSON」を保管してください。メモリの回収時期はブラウザ・OSが管理します。</p>
+        <p>動作を止めたい場合は、画面末尾が「端末内保存済み」になったことを確認し、このアプリのタブ・ウィンドウをすべて閉じてください。保存エラー時は先に「画面内データの救出用JSON」を保管してください。メモリの回収時期はブラウザ・OSが管理します。</p>
         <p>復元は「２．バックアップ」→「JSONバックアップを復元」から行います。現在の内容を置き換えるため、復元前のバックアップも保管してください。</p>
         <button type="button" id="showDiagnostics" disabled>診断情報を表示・更新</button>
         <button type="button" id="copyDiagnostics" disabled>表示中の診断情報をコピー</button>
@@ -215,6 +215,7 @@
       </section>
     </div>
   </section>
+  <footer><small id="status" role="status" aria-live="polite">読み込み中…</small></footer>
 </main>
 </body>
 </html>

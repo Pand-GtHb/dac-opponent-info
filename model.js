@@ -42,11 +42,16 @@
     }
     return matches;
   }
-  function recordHistoryPage(records, input, requestedPage) {
+  function opponentNameFilter(input) {
+    const query = normalizeSearch(input.trim());
+    return query ? record => normalizeSearch(record.values.opponent).includes(query) : () => true;
+  }
+  function recordHistoryPage(records, input, requestedPage, opponent = "") {
     const pageSize = 50;
     const query = normalizeSearch(input);
-    const matching = query
-      ? records.filter(record => recordSearchParts(record).join(" ").includes(query))
+    const matchesOpponent = opponentNameFilter(opponent);
+    const matching = query || opponent
+      ? records.filter(record => matchesOpponent(record) && (!query || recordSearchParts(record).join(" ").includes(query)))
       : records;
     const total = matching.length;
     const lastPage = Math.max(0, Math.ceil(total / pageSize) - 1);
@@ -720,7 +725,7 @@
     if (/^\s*'(?=[=+\-@])/.test(value)) return value.replace(/^(\s*)'/, "$1");
     return value;
   }
-  const api = { fields, defaultSettings, prefectures, recordSearchMatches, recordHistoryPage, searchHighlightParts, formatWinRate, opponentWinRates, formatCourseChoiceRate, formatCourseResult, playerSuggestions, applyPlayerCandidate, applyUnknownPlayer, syncDefaultOpponentRank, teamSuggestions, newDraft, captureOpponentTime, hasCurrentOpponentTime, matchDateTime, normalizeName, shopKey, parsePaste, applyPaste, applyPasteWithHistory, mergeTemporaryCounters, nextTemporaryNo,
+  const api = { fields, defaultSettings, prefectures, recordSearchMatches, recordHistoryPage, opponentNameFilter, searchHighlightParts, formatWinRate, opponentWinRates, formatCourseChoiceRate, formatCourseResult, playerSuggestions, applyPlayerCandidate, applyUnknownPlayer, syncDefaultOpponentRank, teamSuggestions, newDraft, captureOpponentTime, hasCurrentOpponentTime, matchDateTime, normalizeName, shopKey, parsePaste, applyPaste, applyPasteWithHistory, mergeTemporaryCounters, nextTemporaryNo,
     validateSettings, validateDraft, validateRecord, validateBackup, withoutCardNumbers, findHistory, previousCourseMatch, previousOutcome, upsert, mergeHistory, replaceHistory, toCsv, toImportCsv, toExcelCsv, mergeImportCsv };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RecordModel = api;

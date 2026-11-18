@@ -6,6 +6,7 @@
   const C = RecordCatalog;
   const maintenance = RecordMaintenance;
   const $ = id => document.getElementById(id);
+  $("appVersion").textContent = `V${maintenance.version}`;
   let state, db, revision = 0, pending = 0, failure = null, busy = false, opponentEdited = false;
   let resetComplete = false;
   let historyPage = 0;
@@ -795,12 +796,19 @@
       (records.length ? `・勝率 ${M.formatWinRate(records)}` : "");
     $("history").append(summary, recordsTable(records.slice(0, 10), false));
   }
+  function renderInputRecords() {
+    const all = state.records.filter(isAppRecord);
+    const filter = M.opponentNameFilter($("inputOpponentFilter").value);
+    const appRecords = all.filter(filter).reverse();
+    const winRates = M.opponentWinRates(state.records, state.settings.shopAliases, appRecords);
+    const count = appRecords.length.toLocaleString("ja-JP");
+    $("inputRecordCount").textContent = appRecords.length === all.length ? `(${count}件)`
+      : `(${count} / ${all.length.toLocaleString("ja-JP")}件)`;
+    $("inputRecordList").replaceChildren(recordsTable(appRecords, true, new Map(), winRates));
+  }
   function renderRecords() {
     if (resetComplete) return;
-    const appRecords = state.records.filter(isAppRecord).reverse();
-    const winRates = M.opponentWinRates(state.records, state.settings.shopAliases, appRecords);
-    $("inputRecordCount").textContent = `(${appRecords.length.toLocaleString("ja-JP")}件)`;
-    $("inputRecordList").replaceChildren(recordsTable(appRecords, true, new Map(), winRates));
+    renderInputRecords();
     $("recordCount").textContent = `(${state.records.length.toLocaleString("ja-JP")}件)`;
     renderSavedRecords();
   }
@@ -813,10 +821,11 @@
       return;
     }
     const query = $("search").value.trim();
-    const result = M.recordHistoryPage(state.records, query, historyPage);
+    const opponent = $("historyOpponentFilter").value.trim();
+    const result = M.recordHistoryPage(state.records, query, historyPage, opponent);
     historyPage = result.page;
     const count = value => value.toLocaleString("ja-JP");
-    const total = query ? `検索結果：${count(result.total)}件 / 全${count(state.records.length)}件`
+    const total = query || opponent ? `検索結果：${count(result.total)}件 / 全${count(state.records.length)}件`
       : `全${count(result.total)}件`;
     $("recordSearchInfo").textContent = result.total
       ? `${total}（${count(result.firstShown)}〜${count(result.lastShown)}件目を表示）` : total;
@@ -940,7 +949,7 @@
     heading.textContent = "このアプリの端末内データを初期化しました";
     const message = document.createElement("p");
     message.textContent = "このタブを閉じてください。再利用する場合は開き直し、マスターまたはJSONバックアップを読み込んでください。別タブに残る古い内容を救出した場合は、消去済みデータの再取込に注意してください。";
-    main.replaceChildren(heading, message);
+    main.replaceChildren(heading, message, $("status").closest("footer"));
     $("status").textContent = "初期化完了・このタブでの入力と保存は停止しています";
     $("error").hidden = true;
   }
@@ -1124,9 +1133,14 @@
   $("savedRecords").ontoggle = () => renderSavedRecords();
   $("historyPrevious").onclick = event => changeHistoryPage(-1, event.currentTarget);
   $("historyNext").onclick = event => changeHistoryPage(1, event.currentTarget);
+  $("inputOpponentFilter").oninput = renderInputRecords;
+  $("historyOpponentFilter").oninput = () => {
+    historyPage = 0;
+    renderSavedRecords();
+  };
   $("search").oninput = () => {
     historyPage = 0;
-    const open = Boolean($("search").value.trim());
+    const open = Boolean($("search").value.trim() || $("historyOpponentFilter").value.trim());
     if ($("savedRecords").open !== open) $("savedRecords").open = open;
     else renderSavedRecords();
   };
