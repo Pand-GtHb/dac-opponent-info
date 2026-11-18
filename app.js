@@ -15,6 +15,7 @@
   const filterSources = new WeakMap();
   let slotCatalog, slotCard;
   const cardSlotIds = ["cardSlot1", "cardSlot2", "cardSlot3"];
+  let slotVehicleIds = [];
   const resultObservers = [];
   const appScope = new URL("./", document.baseURI).href;
   let offlineSetup = Promise.resolve(), offlineSetupError = null;
@@ -554,34 +555,56 @@
     $("cardSlotStatus").textContent = "";
     $("saveCardSlots").disabled = true;
     $("exportCardSlots").disabled = !card;
-    $("otherSlotVehicles").open = false;
-    if (card) renderCardSlotOptions(cardSlotIds.map((_, i) =>
+    if (card) renderCardSlotValues(cardSlotIds.map((_, i) =>
       card.activeSlots.find(slot => slot.slot === i + 1)?.vehicleId || ""));
   }
-  function renderCardSlotOptions(selected) {
-    const card = slotCard;
-    const catalog = slotCatalog;
-    const byId = new Map(catalog.common.vehicles.map(vehicle => [vehicle.id, vehicle]));
-    const garageIds = [...new Set(card.garage.map(slot => slot.vehicleId))];
-    const garageSet = new Set(garageIds);
-    const garage = garageIds.map(id => byId.get(id));
-    const other = $("otherSlotVehicles").open
-      ? catalog.common.vehicles.filter(vehicle => !garageSet.has(vehicle.id)) : null;
+  function renderCardSlotValues(selected) {
+    slotVehicleIds = selected;
     for (const [index, id] of cardSlotIds.entries()) {
-      const select = $(id);
-      select.replaceChildren(new Option("未登録", ""));
-      const current = byId.get(selected[index]);
-      const groups = [["車庫", garage], ["その他車種", other ||
-        (current && !garageSet.has(current.id) ? [current] : [])]];
-      for (const [title, vehicles] of groups) {
-        if (!vehicles.length) continue;
-        const group = document.createElement("optgroup");
-        group.label = title;
-        for (const vehicle of vehicles) group.append(new Option(vehicle.label, vehicle.id));
-        select.append(group);
-      }
-      select.value = selected[index];
+      const label = slotCatalog.common.vehicles.find(vehicle => vehicle.id === selected[index])?.label || "未登録";
+      const caption = document.createElement("span");
+      caption.textContent = `スロット${index + 1}`;
+      $(id).replaceChildren(caption, document.createTextNode(label));
     }
+    const changed = selected.some((id, i) => id !== (slotCard.activeSlots.find(slot => slot.slot === i + 1)?.vehicleId || ""));
+    $("saveCardSlots").disabled = !changed;
+    $("exportCardSlots").disabled = changed;
+  }
+  function openCardVehiclePicker(index) {
+    if (!slotCard) return;
+    const picker = $("cardVehiclePicker");
+    const current = slotVehicleIds[index];
+    const vehicles = slotCatalog.common.vehicles;
+    const garageIds = new Set(slotCard.garage.map(slot => slot.vehicleId));
+    const byId = new Map(vehicles.map(vehicle => [vehicle.id, vehicle]));
+    const choose = ({ id, label }) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.classList.toggle("primary", id === current);
+      if (id === current) button.setAttribute("aria-current", "true");
+      button.onclick = () => {
+        const selected = [...slotVehicleIds];
+        selected[index] = id;
+        renderCardSlotValues(selected);
+        $("cardSlotStatus").textContent = $("saveCardSlots").disabled ? "" : "未保存のスロット変更があります。";
+        picker.close();
+      };
+      return button;
+    };
+    $("cardVehiclePickerTitle").textContent = `スロット${index + 1}の車種`;
+    $("garageSlotVehicles").replaceChildren(choose({ id: "", label: "未登録" }),
+      ...[...garageIds].map(id => choose(byId.get(id))));
+    $("otherSlotVehicles").open = false;
+    const other = $("allSlotVehicles");
+    other.replaceChildren();
+    $("otherSlotVehicles").hidden = garageIds.size === vehicles.length;
+    $("otherSlotVehicles").ontoggle = event => {
+      if (!event.currentTarget.open || other.childElementCount) return;
+      for (const vehicle of vehicles) if (!garageIds.has(vehicle.id)) other.append(choose(vehicle));
+    };
+    picker.showModal();
+    picker.scrollTop = 0;
   }
   function settingsTable(rows, headings) {
     const table = document.createElement("table");
@@ -1002,6 +1025,7 @@
     masterPreview = null;
     masterFiles = [];
     slotCatalog = slotCard = null;
+    slotVehicleIds = [];
     filterSources.delete(inputOpponentFilter);
     filterSources.delete(historyOpponentFilter);
     inputOpponentFilter.replaceChildren();
@@ -1225,17 +1249,13 @@
       state = next;
     }).then(() => renderCatalogWarnings());
   };
-  for (const id of cardSlotIds) {
-    $(id).onchange = () => {
-      $("saveCardSlots").disabled = !cardSlotIds.some((key, i) =>
-        $(key).value !== (slotCard?.activeSlots.find(slot => slot.slot === i + 1)?.vehicleId || ""));
-      $("exportCardSlots").disabled = !$("saveCardSlots").disabled;
-      $("cardSlotStatus").textContent = $("saveCardSlots").disabled ? "" : "未保存のスロット変更があります。";
+  for (const [index, id] of cardSlotIds.entries()) {
+    $(id).onclick = event => {
+      event.currentTarget.focus({ preventScroll: true });
+      openCardVehiclePicker(index);
     };
   }
-  $("otherSlotVehicles").ontoggle = () => {
-    if (slotCard) renderCardSlotOptions(cardSlotIds.map(id => $(id).value));
-  };
+  $("closeCardVehiclePicker").onclick = () => $("cardVehiclePicker").close();
   $("exportCardSlots").onclick = () => {
     const card = C.selectedCard(state.settings, state.draft.values);
     if (!card) return;
@@ -1246,7 +1266,7 @@
   $("saveCardSlots").onclick = () => run(async () => {
     const card = C.selectedCard(state.settings, state.draft.values);
     if (!card || card !== slotCard) throw new Error("登録カードを選択し直してください。");
-    const vehicleIds = cardSlotIds.map(id => $(id).value);
+    const vehicleIds = slotVehicleIds;
     let settings;
     try { settings = C.updateCardSlots(state.settings, card.id, vehicleIds); }
     catch (error) {
@@ -1551,6 +1571,7 @@
   $("persist").onclick = () => run(async () => {
     if (!navigator.storage?.persist) throw new Error("このブラウザは保持リクエストに対応していません。JSONバックアップを保管してください。");
     const granted = await navigator.storage.persist();
+    $("storageInfo").hidden = false;
     $("storageInfo").textContent = granted
       ? "ストレージ保持が許可されました。ただしデータ削除・故障に備えバックアップが必要です。"
       : "保持は許可されませんでした。JSONバックアップを定期的に保管してください。";
