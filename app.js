@@ -553,17 +553,26 @@
     slotCard = card;
     $("cardSlotStatus").textContent = "";
     $("saveCardSlots").disabled = true;
-    if (!card) return;
+    $("exportCardSlots").disabled = !card;
+    $("otherSlotVehicles").open = false;
+    if (card) renderCardSlotOptions(cardSlotIds.map((_, i) =>
+      card.activeSlots.find(slot => slot.slot === i + 1)?.vehicleId || ""));
+  }
+  function renderCardSlotOptions(selected) {
+    const card = slotCard;
+    const catalog = slotCatalog;
     const byId = new Map(catalog.common.vehicles.map(vehicle => [vehicle.id, vehicle]));
     const garageIds = [...new Set(card.garage.map(slot => slot.vehicleId))];
     const garageSet = new Set(garageIds);
-    const groups = [
-      ["車庫", garageIds.map(id => byId.get(id))],
-      ["全車種（車庫以外）", catalog.common.vehicles.filter(vehicle => !garageSet.has(vehicle.id))]
-    ];
+    const garage = garageIds.map(id => byId.get(id));
+    const other = $("otherSlotVehicles").open
+      ? catalog.common.vehicles.filter(vehicle => !garageSet.has(vehicle.id)) : null;
     for (const [index, id] of cardSlotIds.entries()) {
       const select = $(id);
       select.replaceChildren(new Option("未登録", ""));
+      const current = byId.get(selected[index]);
+      const groups = [["車庫", garage], ["その他車種", other ||
+        (current && !garageSet.has(current.id) ? [current] : [])]];
       for (const [title, vehicles] of groups) {
         if (!vehicles.length) continue;
         const group = document.createElement("optgroup");
@@ -571,7 +580,7 @@
         for (const vehicle of vehicles) group.append(new Option(vehicle.label, vehicle.id));
         select.append(group);
       }
-      select.value = card.activeSlots.find(slot => slot.slot === index + 1)?.vehicleId || "";
+      select.value = selected[index];
     }
   }
   function settingsTable(rows, headings) {
@@ -835,9 +844,10 @@
       : `(${count} / ${all.length.toLocaleString("ja-JP")}件)`;
     renderFilteredTable("inputRecordList", appRecords, undefined, winRates, inputOpponentFilter);
   }
-  function updateOpponentFilter(select, records) {
-    if (filterSources.get(select) === state.records) return;
-    filterSources.set(select, state.records);
+  function updateOpponentFilter(select, records, query = "") {
+    const previousSource = filterSources.get(select);
+    if (previousSource?.records === state.records && previousSource.query === query) return;
+    filterSources.set(select, { records: state.records, query });
     const previous = select.value;
     const names = [...new Set(records.map(record => record.values.opponent).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, "ja"));
@@ -870,10 +880,10 @@
       $("historyPages").hidden = true;
       return;
     }
-    updateOpponentFilter(historyOpponentFilter, state.records);
     const query = $("search").value.trim();
+    const result = M.recordHistoryPage(state.records, query, historyPage, historyOpponentFilter.value);
+    updateOpponentFilter(historyOpponentFilter, result.searchRows, query);
     const opponent = historyOpponentFilter.value;
-    const result = M.recordHistoryPage(state.records, query, historyPage, opponent);
     historyPage = result.page;
     const count = value => value.toLocaleString("ja-JP");
     const total = query || opponent ? `検索結果：${count(result.total)}件 / 全${count(state.records.length)}件`
@@ -1219,9 +1229,20 @@
     $(id).onchange = () => {
       $("saveCardSlots").disabled = !cardSlotIds.some((key, i) =>
         $(key).value !== (slotCard?.activeSlots.find(slot => slot.slot === i + 1)?.vehicleId || ""));
+      $("exportCardSlots").disabled = !$("saveCardSlots").disabled;
       $("cardSlotStatus").textContent = $("saveCardSlots").disabled ? "" : "未保存のスロット変更があります。";
     };
   }
+  $("otherSlotVehicles").ontoggle = () => {
+    if (slotCard) renderCardSlotOptions(cardSlotIds.map(id => $(id).value));
+  };
+  $("exportCardSlots").onclick = () => {
+    const card = C.selectedCard(state.settings, state.draft.values);
+    if (!card) return;
+    const name = card.label.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").slice(0, 100);
+    download(`dac-slots-${name}.csv`, M.toCardSlotsCsv(card), "text/csv;charset=utf-8");
+    $("cardSlotStatus").textContent = "Excelの該当カード列の13～15行に、CSVの3セルを値として貼り付けてください。";
+  };
   $("saveCardSlots").onclick = () => run(async () => {
     const card = C.selectedCard(state.settings, state.draft.values);
     if (!card || card !== slotCard) throw new Error("登録カードを選択し直してください。");

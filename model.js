@@ -48,18 +48,19 @@
   function recordHistoryPage(records, input, requestedPage, opponent = "") {
     const pageSize = 50;
     const query = normalizeSearch(input);
-    const matchesOpponent = opponentNameFilter(opponent);
-    const matching = query || opponent
-      ? records.filter(record => matchesOpponent(record) && (!query || recordSearchParts(record).join(" ").includes(query)))
-      : records;
-    const total = matching.length;
+    const searchRows = query
+      ? records.filter(record => recordSearchParts(record).join(" ").includes(query)) : records;
+    const matching = opponent ? searchRows.filter(opponentNameFilter(opponent)) : searchRows;
+    const visible = opponent && !matching.length ? searchRows : matching;
+    if (visible !== matching) requestedPage = 0;
+    const total = visible.length;
     const lastPage = Math.max(0, Math.ceil(total / pageSize) - 1);
     const page = Math.min(Math.max(0, requestedPage), lastPage);
     const end = total - page * pageSize;
     const start = Math.max(0, end - pageSize);
-    const rows = matching.slice(start, end).reverse();
+    const rows = visible.slice(start, end).reverse();
     const matches = new Map(query ? rows.map(record => [record, searchMatchRanges(recordSearchParts(record), query)]) : []);
-    return { rows, matches, page, lastPage, total, firstShown: total ? total - end + 1 : 0, lastShown: total - start };
+    return { rows, matches, searchRows, page, lastPage, total, firstShown: total ? total - end + 1 : 0, lastShown: total - start };
   }
   function searchHighlightParts(value, ranges) {
     if (!ranges?.length) return [{ text: value, matched: false }];
@@ -664,6 +665,10 @@
     if (/^[\s]*[=+\-@]/.test(text)) text = "'" + text;
     return `"${text.replace(/"/g, '""')}"`;
   }
+  function toCardSlotsCsv(card) {
+    const rows = [1, 2, 3].map(slot => card.activeSlots.find(item => item.slot === slot)?.label || "未登録");
+    return "\ufeff" + rows.map(csvCell).join("\r\n") + "\r\n";
+  }
   function toCsv(records) {
     const rows = [
       ["対戦ID", "状態", ...fields.map(([, label]) => label), "作成日時", "更新日時"],
@@ -725,7 +730,7 @@
     return value;
   }
   const api = { fields, defaultSettings, prefectures, recordSearchMatches, recordHistoryPage, opponentNameFilter, searchHighlightParts, formatWinRate, opponentWinRates, formatCourseChoiceRate, formatCourseResult, playerSuggestions, applyPlayerCandidate, applyUnknownPlayer, syncDefaultOpponentRank, teamSuggestions, newDraft, captureOpponentTime, hasCurrentOpponentTime, matchDateTime, normalizeName, shopKey, parsePaste, applyPaste, applyPasteWithHistory, mergeTemporaryCounters, nextTemporaryNo,
-    validateSettings, validateDraft, validateRecord, validateBackup, withoutCardNumbers, findHistory, previousCourseMatch, previousOutcome, upsert, mergeHistory, replaceHistory, toCsv, toImportCsv, toExcelCsv, mergeImportCsv };
+    validateSettings, validateDraft, validateRecord, validateBackup, withoutCardNumbers, findHistory, previousCourseMatch, previousOutcome, upsert, mergeHistory, replaceHistory, toCsv, toImportCsv, toExcelCsv, toCardSlotsCsv, mergeImportCsv };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RecordModel = api;
 })(globalThis);
