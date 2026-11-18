@@ -7,12 +7,12 @@
   <title>DAC 対戦記録 PoC</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=98">
+  <link rel="stylesheet" href="./style.css?v=99">
   <script defer src="./catalog.js?v=89"></script>
-  <script defer src="./model.js?v=97"></script>
+  <script defer src="./model.js?v=99"></script>
   <script defer src="./storage.js?v=98"></script>
-  <script defer src="./maintenance.js?v=98"></script>
-  <script defer src="./app.js?v=98"></script>
+  <script defer src="./maintenance.js?v=99"></script>
+  <script defer src="./app.js?v=99"></script>
 </head>
 <body>
 <header><h1>DAC 対戦記録 <small>PoC</small></h1>
@@ -91,11 +91,16 @@
     <h2>３．過去実績</h2>
     <div class="section-content">
     <label>名前・エリア・店舗・チーム・メモで絞り込み<input id="search" type="search"></label>
-    <p class="hint">検索すると一覧を開いて検索結果を表示します。検索欄を空にすると閉じます。全件を見る場合は「対戦一覧」を開いてください。</p>
+    <p class="hint">検索は全件が対象です。一覧は50件ずつ表示します。検索欄を空にすると閉じます。</p>
     <details id="savedRecords">
       <summary>対戦一覧 <span id="recordCount"></span></summary>
       <p id="recordSearchInfo" role="status"></p>
       <p class="hint">「登録No.」列に仮No.または正式なData_No.を表示します。仮登録の行は茶色の文字です。勝ちの行の青い背景は維持します。番号のない旧記録は「—」と表示します。</p>
+      <nav id="historyPages" aria-label="過去実績のページ切替" hidden>
+        <button type="button" id="historyPrevious" aria-controls="recordList">前へ</button>
+        <span id="historyPageNumber"></span>
+        <button type="button" id="historyNext" aria-controls="recordList">次へ</button>
+      </nav>
       <div id="recordList"></div>
     </details>
     </div>

@@ -20,10 +20,12 @@
   const recordSearchFields = ["opponent", "homeShop", "team", "nameNote", "note", "homeArea"];
   const searchSegmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter("ja", { granularity: "grapheme" }) : null;
   const normalizeSearch = value => value.normalize("NFKC").toLowerCase();
+  const recordSearchParts = record => recordSearchFields.map(key => normalizeSearch(record.values[key]));
   function recordSearchMatches(record, input) {
     const query = normalizeSearch(input);
-    if (!query) return {};
-    const parts = recordSearchFields.map(key => normalizeSearch(record.values[key]));
+    return query ? searchMatchRanges(recordSearchParts(record), query) : {};
+  }
+  function searchMatchRanges(parts, query) {
     const text = parts.join(" ");
     const matches = {};
     let start = text.indexOf(query);
@@ -39,6 +41,21 @@
       start = text.indexOf(query, start + 1);
     }
     return matches;
+  }
+  function recordHistoryPage(records, input, requestedPage) {
+    const pageSize = 50;
+    const query = normalizeSearch(input);
+    const matching = query
+      ? records.filter(record => recordSearchParts(record).join(" ").includes(query))
+      : records;
+    const total = matching.length;
+    const lastPage = Math.max(0, Math.ceil(total / pageSize) - 1);
+    const page = Math.min(Math.max(0, requestedPage), lastPage);
+    const end = total - page * pageSize;
+    const start = Math.max(0, end - pageSize);
+    const rows = matching.slice(start, end).reverse();
+    const matches = new Map(query ? rows.map(record => [record, searchMatchRanges(recordSearchParts(record), query)]) : []);
+    return { rows, matches, page, lastPage, total, firstShown: total ? total - end + 1 : 0, lastShown: total - start };
   }
   function searchHighlightParts(value, ranges) {
     if (!ranges?.length) return [{ text: value, matched: false }];
@@ -68,7 +85,10 @@
   function formatWinRate(records) {
     if (!records.length) return "";
     const wins = records.filter(record => record.values.win === "1").length;
-    return `${Math.round(wins / records.length * 100)}%（${wins}/${records.length}）`;
+    return winRateText(wins, records.length);
+  }
+  function winRateText(wins, total) {
+    return `${Math.round(wins / total * 100)}%（${wins}/${total}）`;
   }
   function formatCourseChoiceRate(records) {
     if (!records.length) return "";
@@ -367,18 +387,25 @@
       shopKey(r.values.homeShop, aliases) === shop).sort((a, b) =>
       b.values.date.localeCompare(a.values.date) || (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   }
-  function opponentWinRates(records, aliases) {
-    const groups = new Map(), rates = new Map();
-    for (const record of records) {
-      const key = JSON.stringify([normalizeName(record.values.opponent), shopKey(record.values.homeShop, aliases)]);
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(record);
+  function opponentWinRates(records, aliases, visible = records) {
+    const keyOf = ({ values }) => JSON.stringify([normalizeName(values.opponent), shopKey(values.homeShop, aliases)]);
+    const groups = new Map(), rates = new Map(), rowKeys = new Map();
+    for (const record of visible) {
+      if (!record.values.opponent.trim() || !record.values.homeShop.trim()) continue;
+      const key = keyOf(record);
+      if (!groups.has(key)) groups.set(key, { wins: 0, total: 0 });
+      rowKeys.set(record, key);
     }
-    for (const group of groups.values()) {
-      const rate = formatWinRate(group);
-      for (const record of group) {
-        if (record.values.opponent.trim() && record.values.homeShop.trim()) rates.set(record, rate);
-      }
+    if (!groups.size) return rates;
+    for (const record of records) {
+      const group = groups.get(rowKeys.get(record) ?? keyOf(record));
+      if (!group) continue;
+      group.total++;
+      if (record.values.win === "1") group.wins++;
+    }
+    for (const [record, key] of rowKeys) {
+      const { wins, total } = groups.get(key);
+      if (total) rates.set(record, winRateText(wins, total));
     }
     return rates;
   }
@@ -693,7 +720,7 @@
     if (/^\s*'(?=[=+\-@])/.test(value)) return value.replace(/^(\s*)'/, "$1");
     return value;
   }
-  const api = { fields, defaultSettings, prefectures, recordSearchMatches, searchHighlightParts, formatWinRate, opponentWinRates, formatCourseChoiceRate, formatCourseResult, playerSuggestions, applyPlayerCandidate, applyUnknownPlayer, syncDefaultOpponentRank, teamSuggestions, newDraft, captureOpponentTime, hasCurrentOpponentTime, matchDateTime, normalizeName, shopKey, parsePaste, applyPaste, applyPasteWithHistory, mergeTemporaryCounters, nextTemporaryNo,
+  const api = { fields, defaultSettings, prefectures, recordSearchMatches, recordHistoryPage, searchHighlightParts, formatWinRate, opponentWinRates, formatCourseChoiceRate, formatCourseResult, playerSuggestions, applyPlayerCandidate, applyUnknownPlayer, syncDefaultOpponentRank, teamSuggestions, newDraft, captureOpponentTime, hasCurrentOpponentTime, matchDateTime, normalizeName, shopKey, parsePaste, applyPaste, applyPasteWithHistory, mergeTemporaryCounters, nextTemporaryNo,
     validateSettings, validateDraft, validateRecord, validateBackup, withoutCardNumbers, findHistory, previousCourseMatch, previousOutcome, upsert, mergeHistory, replaceHistory, toCsv, toImportCsv, toExcelCsv, mergeImportCsv };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RecordModel = api;

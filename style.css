@@ -108,6 +108,9 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 .records-table tr.record-win { background: #d3e6ff; }
 .records-table tr.record-provisional { color: #824100; }
 .records-table mark { background: #ffe272; color: inherit; }
+#historyPages { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+#historyPages button { min-width: 64px; min-height: 44px; margin: 0; }
+#historyPageNumber { text-align: center; font-variant-numeric: tabular-nums; }
 .course-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 16px; align-items: start; border-radius: 8px; }
 #primaryFields { border-radius: 8px; }
 #primaryFields.current-win { background: #d3e6ff; }

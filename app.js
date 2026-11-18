@@ -8,6 +8,7 @@
   const $ = id => document.getElementById(id);
   let state, db, revision = 0, pending = 0, failure = null, busy = false, opponentEdited = false;
   let resetComplete = false;
+  let historyPage = 0;
   const resultObservers = [];
   const appScope = new URL("./", document.baseURI).href;
   let offlineSetup = Promise.resolve(), offlineSetupError = null;
@@ -796,31 +797,44 @@
   }
   function renderRecords() {
     if (resetComplete) return;
-    const reversed = [...state.records].reverse();
-    const appRecords = reversed.filter(isAppRecord);
-    const winRates = appRecords.length || $("savedRecords").open
-      ? M.opponentWinRates(state.records, state.settings.shopAliases) : new Map();
+    const appRecords = state.records.filter(isAppRecord).reverse();
+    const winRates = M.opponentWinRates(state.records, state.settings.shopAliases, appRecords);
     $("inputRecordCount").textContent = `(${appRecords.length.toLocaleString("ja-JP")}件)`;
     $("inputRecordList").replaceChildren(recordsTable(appRecords, true, new Map(), winRates));
     $("recordCount").textContent = `(${state.records.length.toLocaleString("ja-JP")}件)`;
+    renderSavedRecords();
+  }
+  function renderSavedRecords() {
+    if (resetComplete) return;
     if (!$("savedRecords").open) {
       $("recordList").replaceChildren();
       $("recordSearchInfo").textContent = "";
+      $("historyPages").hidden = true;
       return;
     }
     const query = $("search").value.trim();
-    const matches = new Map();
-    const records = reversed.filter(record => {
-      if (!query) return true;
-      const found = M.recordSearchMatches(record, query);
-      if (!found) return false;
-      matches.set(record, found);
-      return true;
-    });
-    $("recordSearchInfo").textContent = query
-      ? `検索結果：${records.length.toLocaleString("ja-JP")}件 / 全${state.records.length.toLocaleString("ja-JP")}件`
-      : `全${records.length.toLocaleString("ja-JP")}件を表示しています。`;
-    $("recordList").replaceChildren(recordsTable(records, true, matches, winRates));
+    const result = M.recordHistoryPage(state.records, query, historyPage);
+    historyPage = result.page;
+    const count = value => value.toLocaleString("ja-JP");
+    const total = query ? `検索結果：${count(result.total)}件 / 全${count(state.records.length)}件`
+      : `全${count(result.total)}件`;
+    $("recordSearchInfo").textContent = result.total
+      ? `${total}（${count(result.firstShown)}〜${count(result.lastShown)}件目を表示）` : total;
+    $("historyPages").hidden = result.lastPage === 0;
+    $("historyPrevious").disabled = historyPage === 0;
+    $("historyNext").disabled = historyPage === result.lastPage;
+    $("historyPageNumber").textContent = `${count(historyPage + 1)} / ${count(result.lastPage + 1)}ページ`;
+    if (!result.rows.length) {
+      $("recordList").replaceChildren();
+      return;
+    }
+    const rates = M.opponentWinRates(state.records, state.settings.shopAliases, result.rows);
+    $("recordList").replaceChildren(recordsTable(result.rows, true, result.matches, rates));
+  }
+  function changeHistoryPage(step, button) {
+    historyPage += step;
+    renderSavedRecords();
+    if (button.disabled) $(step > 0 ? "historyPrevious" : "historyNext").focus();
   }
   function renderSettings() {
     for (const key of Object.keys(settingLabels)) {
@@ -1107,11 +1121,14 @@
     renderDraft();
     $("saveEntry").textContent = "この対戦を保存";
   });
-  $("savedRecords").ontoggle = renderRecords;
+  $("savedRecords").ontoggle = () => renderSavedRecords();
+  $("historyPrevious").onclick = event => changeHistoryPage(-1, event.currentTarget);
+  $("historyNext").onclick = event => changeHistoryPage(1, event.currentTarget);
   $("search").oninput = () => {
+    historyPage = 0;
     const open = Boolean($("search").value.trim());
     if ($("savedRecords").open !== open) $("savedRecords").open = open;
-    else renderRecords();
+    else renderSavedRecords();
   };
   $("cardTeam").onchange = () => {
     const card = C.selectedCard(state.settings, state.draft.values);
