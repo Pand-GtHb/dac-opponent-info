@@ -1807,6 +1807,10 @@
         return { name: file.name, data };
       }));
       masterFiles.push(...additions);
+      const availableTypes = new Set(C.masterTypesForFiles(masterFiles.map(file => file.data)));
+      for (const input of $("masterChoices").querySelectorAll("input")) {
+        input.checked = availableTypes.has(input.value);
+      }
       renderMasterSelection();
     }).finally(() => { $("masterFiles").value = ""; });
   };

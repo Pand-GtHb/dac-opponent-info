@@ -117,12 +117,18 @@
   };
   const dailyMasterTypes = ["STORE_Master", "TEAM_Master", "CARD_Master"];
   const timingMasterTypes = ["ROUND_Master", "CAR_Master", "RANK_Master", "AREA_Master", "CORD_Master"];
+  const supportedMasterTypes = [...Object.keys(masterFields), "OPPONENT_Master"];
+  function masterTypesForFiles(files) {
+    if (!Array.isArray(files) || files.some(file => !supportedMasterTypes.includes(file?.masterType))) {
+      invalid("未対応のマスター種類です");
+    }
+    return [...new Set(files.map(file => file.masterType))];
+  }
   function readSelectedMasters(files, selectedTypes) {
-    const supported = [...Object.keys(masterFields), "OPPONENT_Master"];
     if (!Array.isArray(files) || !Array.isArray(selectedTypes) || !selectedTypes.length ||
         new Set(selectedTypes).size !== selectedTypes.length ||
-        selectedTypes.some(type => !supported.includes(type))) invalid("取り込む種類を選択してください");
-    if (files.some(file => !supported.includes(file?.masterType))) invalid("未対応のマスター種類です");
+        selectedTypes.some(type => !supportedMasterTypes.includes(type))) invalid("取り込む種類を選択してください");
+    if (files.some(file => !supportedMasterTypes.includes(file?.masterType))) invalid("未対応のマスター種類です");
     const chosen = selectedTypes.map(type => {
       const matches = files.filter(file => file.masterType === type);
       if (!matches.length) invalid(`${type}のファイルが不足しています`);
@@ -582,7 +588,7 @@
     }
     return next;
   }
-  const api = { validate, withoutCardNumbers, readBundle, readMasters, readSelectedMasters, readDailyUpdate, readTimingMasters, masterCardDiffs, mergeMasters, merge, choices, label, selectedCard, selectedRound, applyCard, suggestContext, warnings, profiles, cardInfo, updateProfiles, updateOnlineEnabled, updateCardTeam, updateCardSlots, registerCard, registerTeam, registerList, opponentTeams, teamSuggestions, vehicleOptions, vehicleGroups, normalizeStars, formatStars, compactGarages, cleanOpponentLists };
+  const api = { validate, withoutCardNumbers, readBundle, readMasters, masterTypesForFiles, readSelectedMasters, readDailyUpdate, readTimingMasters, masterCardDiffs, mergeMasters, merge, choices, label, selectedCard, selectedRound, applyCard, suggestContext, warnings, profiles, cardInfo, updateProfiles, updateOnlineEnabled, updateCardTeam, updateCardSlots, registerCard, registerTeam, registerList, opponentTeams, teamSuggestions, vehicleOptions, vehicleGroups, normalizeStars, formatStars, compactGarages, cleanOpponentLists };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RecordCatalog = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

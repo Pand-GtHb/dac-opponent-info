@@ -167,7 +167,7 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 .master-step > h3 { font-size: 1rem; margin: .75rem 0; }
 #settings [data-subpanel="master"] > .settings-section,
 #settings [data-subpanel="maintenance"] > .settings-section { margin-left: 0; }
-#masterFields > .master-step:nth-of-type(-n+2),
+#masterFields > .master-step,
 #settings [data-subpanel="maintenance"] .master-step { padding-left: 0; border-left: 0; }
 .maintenance-info { white-space: pre-line; overflow-wrap: anywhere; }
 .danger { color: #9c2013; border-color: #9c2013; }
