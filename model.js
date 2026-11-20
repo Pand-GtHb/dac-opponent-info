@@ -45,11 +45,11 @@
   function opponentNameFilter(name) {
     return name ? record => record.values.opponent === name : () => true;
   }
-  function recordHistoryPage(records, input, requestedPage, opponent = "", card = "") {
+  function recordHistoryPage(records, input, requestedPage, opponent = "", card = "", date = "") {
     const pageSize = 50;
     const query = normalizeSearch(input);
-    const searchRows = query
-      ? records.filter(record => recordSearchParts(record).join(" ").includes(query)) : records;
+    const searchRows = query || date ? records.filter(record => (!date || record.values.date === date) &&
+      (!query || recordSearchParts(record).join(" ").includes(query))) : records;
     const opponentRows = opponent ? searchRows.filter(opponentNameFilter(opponent)) : searchRows;
     const matching = card ? opponentRows.filter(record => record.values.card === card) : opponentRows;
     const visible = opponent && !matching.length ? searchRows : matching;

@@ -105,7 +105,7 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 .full-width { grid-column: 1 / -1; }
 .session-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
 #roundFields, #cardFields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-#roundFields label, #cardFields > div:not(.full-width) > label {
+#roundFields label, #cardFields > div:not(.full-width, [data-field="card"]) > label {
   display: flex; align-items: center;
 }
 #roundFields .field-controls, #cardFields > div:not(.full-width) .field-controls { flex: 1; }
@@ -119,8 +119,12 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 #myStarsButton .star-groups { flex-wrap: nowrap; }
 .session-fields > div, #primaryFields > div { min-width: 0; }
 .session-fields label { grid-template-columns: minmax(0, 3.5rem) minmax(0, 1fr); gap: 3px; align-items: start; }
-#roundFields > div:first-child label, #cardFields > div:first-child label,
-#cardFields > .full-width label { grid-template-columns: minmax(0, 2.5rem) minmax(0, 1fr); }
+#roundFields > div:first-child label { grid-template-columns: minmax(0, 2.5rem) minmax(0, 1fr); }
+#cardFields { --card-caption-width: 4rem; }
+#cardFields > [data-field="card"] > label, #cardTeamField > label {
+  display: grid; grid-template-columns: var(--card-caption-width) minmax(0, 1fr); gap: 3px; align-items: center;
+}
+#cardTeamField .field-caption { padding-top: 0; }
 .session-fields .field-caption { white-space: nowrap; }
 #primaryFields > [data-field="car"], #primaryFields > [data-field="opponentCar"] { grid-column: 1 / -1; }
 #primaryFields > [data-field="car"] > label, #primaryFields > [data-field="opponentCar"] > label {
@@ -146,7 +150,11 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 @media (max-width: 520px) {
   #roundFields label, #cardFields > div:not(.full-width) > label { display: grid; grid-template-columns: minmax(0, 1fr); }
   #roundFields { grid-template-columns: 1.05fr 1fr 1fr; }
-  #cardFields { grid-template-columns: 1fr 1fr 1.06fr; }
+  #cardFields { grid-template-columns: 1fr 1fr 1.06fr; --card-caption-width: 0px; }
+  #cardFields > [data-field="card"] > label, #cardTeamField > label {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #cardFields > [data-field="card"] .field-controls, #cardTeamField .field-controls { margin-inline-start: 2px; }
   #cardFields select { font-size: .75rem; }
   #myStarsButton .star-groups { column-gap: .2em; }
   #roundCourseDetails > :not(summary) { margin-left: 0; }
@@ -174,7 +182,11 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 .summary-group[open] > summary::before { content: "\25bc"; }
 .summary-group > summary > span:first-child { flex: 1; min-width: 0; }
 .summary-group > :not(summary) { margin-left: .35rem; }
-.summary-result { text-align: right; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.summary-result { display: grid; flex: none; grid-template-columns: var(--summary-count-width, 5ch) 1.5ch
+  var(--summary-count-width, 5ch) calc(6ch + 2em); text-align: right; font-size: 1.05rem;
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.summary-result > :nth-child(2) { text-align: center; }
+.summary-unknown { grid-column: 1 / -1; font-size: .85em; }
 .summary-table-scroll { max-width: 100%; overflow-x: auto; }
 .summary-table { table-layout: auto; }
 .summary-table td:not(:first-child) { text-align: right; font-size: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -182,7 +194,7 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 .summary-table th:not(:first-child) { white-space: nowrap; }
 @media (max-width: 759px) {
   .summary-group > summary { font-size: .8rem; }
-  .summary-group > summary > span:first-child { white-space: nowrap; }
+  .summary-group > summary > span:first-child { overflow-wrap: anywhere; }
   .summary-table th, .summary-table td { padding: 4px; }
 }
 .battle-section { padding: 0; }
@@ -244,6 +256,7 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 .records-table th, .records-table td { border: 1px solid #879d94; padding: 8px; text-align: left; vertical-align: top; }
 .records-table th { background: #e5eeea; white-space: nowrap; text-align: center; vertical-align: middle; }
 .records-table .opponent-column-filter { display: block; width: 7rem; margin: 3px auto 0; padding-inline: 3px; }
+.records-table .history-date-filter { width: 9rem; }
 .records-table td { min-width: 5rem; max-width: 16rem; white-space: pre-line; overflow-wrap: anywhere; }
 .records-table .opponent-copy { background: none; border: 0; color: inherit; margin: 0; padding: 0; min-height: 28px;
   text-align: left; text-decoration: underline; overflow-wrap: anywhere; user-select: text; }

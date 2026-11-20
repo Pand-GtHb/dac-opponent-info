@@ -11,9 +11,8 @@
   let state, db, revision = 0, pending = 0, failure = null, busy = false, opponentEdited = false;
   let resetComplete = false;
   let historyPage = 0;
-  const inputOpponentFilter = document.createElement("select");
+  const historyDateFilter = document.createElement("select");
   const historyOpponentFilter = document.createElement("select");
-  const inputCardFilter = document.createElement("select");
   const historyCardFilter = document.createElement("select");
   const detailsOpen = new Map();
   const sectionTabs = {
@@ -584,6 +583,7 @@
     }
     const teamField = document.createElement("div");
     teamField.className = "full-width";
+    teamField.id = "cardTeamField";
     const teamLabel = document.createElement("label");
     teamLabel.textContent = "自チーム";
     const team = document.createElement("select");
@@ -997,9 +997,9 @@
   function isAppRecord(record) {
     return !record.id.startsWith("excel-datano:");
   }
-  function recordsTable(records, mode, matches = new Map(), winRates = new Map(), opponentFilter = null, cardFilter = null) {
-    const showAffiliation = mode !== "current";
+  function recordsTable(records, mode, matches = new Map(), winRates = new Map(), filters = {}) {
     const opponentHistory = mode === "opponent";
+    const showAffiliation = opponentHistory;
     const columns = [
       ["日付", r => [r.opponentConfirmedAt ? M.matchDateTime(r) : r.values.date,
         [r.values.season, r.values.round].filter(Boolean).join(" / "),
@@ -1010,9 +1010,8 @@
       ["自カード", r => r.values.card],
       ...(showAffiliation ? [
         ["相手", r => r.values.opponent],
-        [opponentHistory ? "エリア：店舗" : "エリア・所属店", r => [r.values.homeArea, r.values.homeShop].filter(Boolean).join("\n")],
-        ["チーム", r => r.values.teamShop
-          ? `${r.values.team || "未入力"}\n所属店：${r.values.teamShop}` : r.values.team]
+        ["エリア：店舗"],
+        ["チーム"]
       ] : []),
       ["コース", r => r.values.course],
       ...(!opponentHistory ? [["勝敗", r => r.values.win === "1" ? "勝ち" : r.values.win === "0" ? "負け" : "未入力"]] : []),
@@ -1035,8 +1034,7 @@
       const th = document.createElement("th");
       th.scope = "col";
       th.textContent = label;
-      if (label === "相手" && opponentFilter) th.append(opponentFilter);
-      if (label === "自カード" && cardFilter) th.append(cardFilter);
+      if (Object.hasOwn(filters, label)) th.append(filters[label]);
       header.append(th);
     }
     const body = table.createTBody();
@@ -1096,15 +1094,6 @@
           appendPair(cell, "battleArea", "battleShop");
         } else if (opponentHistory && label === "チーム") {
           appendPair(cell, "team", "teamShop");
-        } else if (label === "エリア・所属店" && (found.homeArea || found.homeShop)) {
-          if (record.values.homeArea) {
-            appendHighlighted(cell, record.values.homeArea, found.homeArea);
-            if (record.values.homeShop) cell.append(document.createTextNode("\n"));
-          }
-          if (record.values.homeShop) appendHighlighted(cell, record.values.homeShop, found.homeShop);
-        } else if (label === "チーム" && found.team) {
-          appendHighlighted(cell, record.values.team, found.team);
-          if (record.values.teamShop) cell.append(document.createTextNode(`\n所属店：${record.values.teamShop}`));
         } else cell.textContent = value(record) || "—";
       }
     }
@@ -1167,61 +1156,20 @@
       (records.length ? `・勝率 ${M.formatWinRate(records)}` : "");
     $("history").append(summary, recordsTable(records.slice(0, 10), "current"));
   }
-  function renderInputRecords() {
-    if (resetComplete) return;
-    const all = state.records.filter(isAppRecord);
-    const show = $("inputRecords").open;
-    $("inputRecordCount").textContent = `(${all.length.toLocaleString("ja-JP")}件)`;
-    const status = $("inputRecordSearchInfo");
-    if (!show) {
-      $("inputRecordList").replaceChildren();
-      status.hidden = true;
-      return;
-    }
-    const query = $("search").value.trim();
-    const matches = new Map();
-    const matching = query ? all.filter(record => {
-      const ranges = M.recordSearchMatches(record, query);
-      if (!ranges) return false;
-      matches.set(record, ranges);
-      return true;
-    }) : all;
-    updateColumnFilter(inputOpponentFilter, matching, "opponent");
-    const byOpponent = matching.filter(M.opponentNameFilter(inputOpponentFilter.value));
-    updateColumnFilter(inputCardFilter, byOpponent, "card");
-    const appRecords = byOpponent.filter(record => !inputCardFilter.value || record.values.card === inputCardFilter.value).reverse();
-    const winRates = M.opponentWinRates(state.records, state.settings.shopAliases, appRecords);
-    const count = appRecords.length.toLocaleString("ja-JP");
-    status.hidden = appRecords.length !== 0;
-    status.textContent = appRecords.length ? "" : "該当する入力記録はありません。";
-    $("inputRecordCount").textContent = appRecords.length === all.length ? `(${count}件)`
-      : `(${count} / ${all.length.toLocaleString("ja-JP")}件)`;
-    renderFilteredTable("inputRecordList", appRecords, matches, winRates, inputOpponentFilter, inputCardFilter);
-  }
   function updateColumnFilter(select, records, key) {
     const previous = select.value;
     const values = [...new Set(records.map(record => record.values[key]).filter(Boolean))];
     const names = key === "card"
       ? M.sortCardNames(values, cardNames())
-      : values.sort((a, b) => a.localeCompare(b, "ja"));
+      : key === "date" ? values.sort().reverse() : values.sort((a, b) => a.localeCompare(b, "ja"));
     const options = document.createDocumentFragment();
     options.append(new Option("すべて", ""));
     for (const name of names) options.append(new Option(name, name));
     select.replaceChildren(options);
     select.value = names.includes(previous) ? previous : "";
   }
-  function renderFilteredTable(id, rows, matches, rates, filter, cardFilter) {
-    const container = $(id);
-    const left = container.firstElementChild?.scrollLeft || 0;
-    const focused = [filter, cardFilter].includes(document.activeElement) ? document.activeElement : null;
-    const wrapper = recordsTable(rows, id === "recordList" ? "opponent" : "input", matches, rates, filter, cardFilter);
-    container.replaceChildren(wrapper);
-    wrapper.scrollLeft = left;
-    if (focused) focused.focus({ preventScroll: true });
-  }
   function renderRecords() {
     if (resetComplete) return;
-    renderInputRecords();
     $("recordCount").textContent = `(${state.records.length.toLocaleString("ja-JP")}件)`;
     renderSavedRecords();
   }
@@ -1230,8 +1178,6 @@
     const seasons = M.summarizePivot(state.records, cards);
     const number = value => value.toLocaleString("ja-JP");
     const rate = stats => stats.total ? `${(stats.wins / stats.total * 100).toFixed(1)}%` : "—";
-    const resultText = stats => `${number(stats.wins)}勝 / ${number(stats.total)}戦（${rate(stats)}）` +
-      (stats.unknown ? `（勝敗未入力 ${number(stats.unknown)}）` : "");
     function expandable(parent, key, label, stats, initiallyOpen) {
       const details = document.createElement("details");
       details.className = "summary-group";
@@ -1241,7 +1187,17 @@
       name.textContent = label || "未入力";
       const result = document.createElement("span");
       result.className = "summary-result";
-      result.textContent = resultText(stats);
+      for (const text of [`${number(stats.wins)}勝`, " / ", `${number(stats.total)}戦`, `（${rate(stats)}）`]) {
+        const part = document.createElement("span");
+        part.textContent = text;
+        result.append(part);
+      }
+      if (stats.unknown) {
+        const unknown = document.createElement("span");
+        unknown.className = "summary-unknown";
+        unknown.textContent = `（勝敗未入力 ${number(stats.unknown)}）`;
+        result.append(unknown);
+      }
       summary.append(name, result);
       details.append(summary);
       parent.append(details);
@@ -1263,6 +1219,7 @@
     }
     for (const [id, kind] of [["summaryCards", "card"], ["summaryDays", "day"]]) {
       const container = $(id);
+      container.style.setProperty("--summary-count-width", `calc(${number(state.records.length).length}ch + 1em)`);
       container.replaceChildren();
       if (!seasons.length) {
         container.textContent = "集計できる保存済み記録はありません。";
@@ -1295,14 +1252,16 @@
       return;
     }
     const query = $("search").value.trim();
-    const searchRows = M.recordHistoryPage(state.records, query, 0).searchRows;
+    updateColumnFilter(historyDateFilter, state.records, "date");
+    const date = historyDateFilter.value;
+    const searchRows = M.recordHistoryPage(state.records, query, 0, "", "", date).searchRows;
     updateColumnFilter(historyOpponentFilter, searchRows, "opponent");
     updateColumnFilter(historyCardFilter, searchRows.filter(M.opponentNameFilter(historyOpponentFilter.value)), "card");
-    const result = M.recordHistoryPage(state.records, query, historyPage, historyOpponentFilter.value, historyCardFilter.value);
+    const result = M.recordHistoryPage(state.records, query, historyPage, historyOpponentFilter.value, historyCardFilter.value, date);
     const opponent = historyOpponentFilter.value;
     historyPage = result.page;
     const count = value => value.toLocaleString("ja-JP");
-    const total = query || opponent || historyCardFilter.value ? `検索結果：${count(result.total)}件 / 全${count(state.records.length)}件`
+    const total = query || date || opponent || historyCardFilter.value ? `検索結果：${count(result.total)}件 / 全${count(state.records.length)}件`
       : `全${count(result.total)}件`;
     $("recordSearchInfo").textContent = result.total
       ? `${total}（${count(result.firstShown)}〜${count(result.lastShown)}件目を表示）` : total;
@@ -1311,7 +1270,14 @@
     $("historyNext").disabled = historyPage === result.lastPage;
     $("historyPageNumber").textContent = `${count(historyPage + 1)} / ${count(result.lastPage + 1)}ページ`;
     const rates = M.opponentWinRates(state.records, state.settings.shopAliases, result.rows);
-    renderFilteredTable("recordList", result.rows, result.matches, rates, historyOpponentFilter, historyCardFilter);
+    const container = $("recordList");
+    const left = container.firstElementChild?.scrollLeft || 0;
+    const filters = { 日付: historyDateFilter, 相手: historyOpponentFilter, 自カード: historyCardFilter };
+    const focused = Object.values(filters).find(filter => filter === document.activeElement);
+    const wrapper = recordsTable(result.rows, "opponent", result.matches, rates, filters);
+    container.replaceChildren(wrapper);
+    wrapper.scrollLeft = left;
+    if (focused) focused.focus({ preventScroll: true });
   }
   function changeHistoryPage(step, button) {
     historyPage += step;
@@ -1434,9 +1400,8 @@
     masterFiles = [];
     slotCatalog = slotCard = null;
     slotVehicleIds = [];
-    inputOpponentFilter.replaceChildren();
+    historyDateFilter.replaceChildren();
     historyOpponentFilter.replaceChildren();
-    inputCardFilter.replaceChildren();
     historyCardFilter.replaceChildren();
     const main = document.querySelector("main");
     const heading = document.createElement("h2");
@@ -1677,37 +1642,24 @@
     renderDraft();
     $("saveEntry").textContent = "この対戦を保存";
   });
-  $("inputRecords").ontoggle = renderInputRecords;
   $("savedRecords").ontoggle = renderSavedRecords;
   $("historyPrevious").onclick = event => changeHistoryPage(-1, event.currentTarget);
   $("historyNext").onclick = event => changeHistoryPage(1, event.currentTarget);
-  for (const [filter, title, list] of [
-    [inputOpponentFilter, "入力記録の相手で絞り込み", "inputRecordList"],
-    [historyOpponentFilter, "過去実績の相手で絞り込み", "recordList"],
-    [inputCardFilter, "入力記録の自カードで絞り込み", "inputRecordList"],
-    [historyCardFilter, "対戦相手の自カードで絞り込み", "recordList"]
+  for (const [filter, title] of [
+    [historyDateFilter, "対戦日で絞り込み"],
+    [historyOpponentFilter, "過去実績の相手で絞り込み"],
+    [historyCardFilter, "対戦相手の自カードで絞り込み"]
   ]) {
-    filter.className = "opponent-column-filter";
+    filter.className = filter === historyDateFilter ? "opponent-column-filter history-date-filter" : "opponent-column-filter";
     filter.setAttribute("aria-label", title);
-    filter.setAttribute("aria-controls", list);
+    filter.setAttribute("aria-controls", "recordList");
+    filter.onchange = () => { historyPage = 0; renderSavedRecords(); };
   }
-  inputOpponentFilter.onchange = renderInputRecords;
-  inputCardFilter.onchange = renderInputRecords;
-  historyOpponentFilter.onchange = () => {
-    historyPage = 0;
-    renderSavedRecords();
-  };
-  historyCardFilter.onchange = () => { historyPage = 0; renderSavedRecords(); };
   $("search").oninput = () => {
     historyPage = 0;
-    const searching = Boolean($("search").value.trim());
-    for (const [id, open, render] of [
-      ["inputRecords", searching || Boolean(inputOpponentFilter.value || inputCardFilter.value), renderInputRecords],
-      ["savedRecords", searching || Boolean(historyOpponentFilter.value || historyCardFilter.value), renderSavedRecords]
-    ]) {
-      if ($(id).open !== open) $(id).open = open;
-      else render();
-    }
+    const open = Boolean($("search").value.trim() || historyDateFilter.value || historyOpponentFilter.value || historyCardFilter.value);
+    if ($("savedRecords").open !== open) $("savedRecords").open = open;
+    else renderSavedRecords();
   };
   $("cardTeam").onchange = () => {
     const card = C.selectedCard(state.settings, state.draft.values);

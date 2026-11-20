@@ -7,12 +7,12 @@
   <title>DAC 対戦記録 PoC</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=132">
+  <link rel="stylesheet" href="./style.css?v=134">
   <script defer src="./catalog.js?v=132"></script>
-  <script defer src="./model.js?v=132"></script>
+  <script defer src="./model.js?v=134"></script>
   <script defer src="./storage.js?v=117"></script>
-  <script defer src="./maintenance.js?v=133"></script>
-  <script defer src="./app.js?v=133"></script>
+  <script defer src="./maintenance.js?v=134"></script>
+  <script defer src="./app.js?v=134"></script>
 </head>
 <body>
 <header><div class="header-row"><h1>DAC 対戦記録 <small>PoC <span id="appVersion"></span></small></h1>
@@ -116,14 +116,8 @@
     <section data-subpanel="history" hidden>
     <h2>３．対戦相手</h2>
     <div class="section-content">
-    <label>名前・エリア・店舗・チーム・メモで絞り込み<input id="search" type="search" aria-controls="inputRecordList recordList"></label>
-    <p class="hint">同じ検索条件で入力記録と対戦一覧を絞り込みます。対戦一覧は50件ずつ表示します。</p>
-    <details id="inputRecords" data-details-key="input-records">
-      <summary>入力記録 <span id="inputRecordCount"></span></summary>
-      <p class="hint">Excel未反映のアプリ仮登録を表示します。入力途中の下書きは含みません。</p>
-      <p id="inputRecordSearchInfo" role="status" hidden></p>
-      <div id="inputRecordList"></div>
-    </details>
+    <label>名前・エリア・店舗・チーム・メモで絞り込み<input id="search" type="search" aria-controls="recordList"></label>
+    <p class="hint">正式・仮登録を含む対戦一覧を50件ずつ表示します。表の日付・自カード・相手からも絞り込めます。</p>
     <details id="savedRecords" data-details-key="saved-records">
       <summary>対戦一覧 <span id="recordCount"></span></summary>
       <p id="recordSearchInfo" role="status"></p>
