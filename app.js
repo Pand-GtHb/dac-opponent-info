@@ -19,7 +19,6 @@
   const sectionTabs = {
     entry: [["round", "１．ラウンド情報"], ["card", "２．カード情報"], ["battle", "３．対戦情報"], ["history", "４．対戦実績"]],
     summary: [["cards", "１．カード別"], ["days", "２．日別"], ["history", "３．対戦相手"], ["teams", "４．対戦チーム"]],
-    records: [["input", "１．入力記録"], ["export", "２．保存"]],
     settings: [["master", "１．マスター登録"], ["backup", "２．バックアップ"], ["maintenance", "３．保守・データ管理"]]
   };
   const selectedSections = Object.fromEntries(Object.entries(sectionTabs).map(([id, sections]) => [id, sections[0][0]]));
@@ -45,7 +44,7 @@
     "car", "opponentCar", "win", "behavior", "note"]);
   const roundFields = ["date", "season", "round"];
   const sessionFields = [...roundFields, "card", "myRank", "myStars"];
-  const fieldTitles = { myRank: "自ランク", myStars: "星数", battleArea: "対戦店舗\nエリア", teamShop: "チーム\n所属店舗",
+  const fieldTitles = { myRank: "自ランク", myStars: "星数", behavior: "ブレフラ\n・譲り", battleArea: "対戦店舗\nエリア", teamShop: "チーム\n所属店舗",
     battleShop: "対戦店舗", homeArea: "所属店舗\nエリア", car: "自車種", opponentCar: "相手車種",
     opponentRank: "相手ランク", opponentStars: "★・PRIDE", copiedRate: "勝率", choice: "選択権", win: "勝ち" };
   const checkboxes = ["night", "random", "choice"];
@@ -119,7 +118,7 @@
   }
   function showTab(id) {
     activeTab = id;
-    for (const tab of ["entry", "records", "summary", "settings"]) $(tab).hidden = tab !== id;
+    for (const tab of Object.keys(sectionTabs)) $(tab).hidden = tab !== id;
     for (const button of document.querySelectorAll("[data-tab]")) button.setAttribute("aria-pressed", String(button.dataset.tab === id));
     showSection(id, selectedSections[id]);
     if (id === "summary" && state) {
@@ -285,7 +284,7 @@
       const title = fieldTitles[key] || originalTitle;
       const label = document.createElement("label");
       label.textContent = title;
-      if (key === "battleArea" || key === "homeArea" || key === "teamShop") label.classList.add("two-line-caption");
+      if (title.includes("\n")) label.classList.add("two-line-caption");
       const checkbox = checkboxes.includes(key);
       const select = dropdowns.includes(key) || ["myRank", "opponentRank", "battleArea", "homeArea"].includes(key);
       const input = document.createElement(key === "win" ? "button" : select ? "select" : key === "opponentStars" ? "textarea" : "input");
@@ -737,6 +736,15 @@
     renderCatalogWarnings();
     if (["card", "myRank", "myStars"].includes(key)) renderHeaderCard();
   }
+  const cardColors = ["green", "cyan", "red", "blue", "yellow", "orange", "purple", "pink",
+    "teal", "lime", "indigo", "rose", "brown", "slate", "mint", "coral"];
+  function cardNames() {
+    return state.settings.catalog?.personal.cards.map(card => card.label) || state.settings.cards;
+  }
+  function cardColor(cards, name) {
+    const index = cards.indexOf(name);
+    return index < 0 ? "" : cardColors[index % cardColors.length];
+  }
   function renderHeaderCard() {
     const select = $("headerCard");
     const value = state.draft.values.card;
@@ -745,10 +753,7 @@
     if (value && !options.some(option => option.value === value)) options.push(new Option(value, value));
     select.replaceChildren(...options);
     select.value = value;
-    const cards = state.settings.catalog?.personal.cards.map(card => card.label) || state.settings.cards;
-    const index = cards.indexOf(value);
-    document.querySelector("header").dataset.cardColor = index < 0 ? "green"
-      : ["green", "cyan", "red", "blue", "yellow"][index % 5];
+    document.querySelector("header").dataset.cardColor = cardColor(cardNames(), value) || "green";
     $("headerRank").textContent = state.draft.values.myRank || "未入力";
     displayStars($("headerStars"), state.draft.values.myStars || "未入力");
   }
@@ -898,10 +903,19 @@
       $("roundCourses").textContent = "シーズン・ラウンドを選択してください。";
       return;
     }
-    $("roundCourses").append(settingsTable([
-      ["開催期間", `${round.startDate} ～ ${round.endDate}`],
-      ["対象コース", round.courseIds.map(id => common.courses.find(course => course.id === id).label).join("\n")]
-    ]));
+    const period = document.createElement("p");
+    period.className = "hint";
+    period.textContent = `開催期間：${round.startDate} ～ ${round.endDate}`;
+    const rows = C.roundCourseRows(common.courses, round.courseIds);
+    const courses = document.createElement("table");
+    courses.className = "round-course-table";
+    courses.setAttribute("aria-label", "対象コース");
+    const body = courses.createTBody();
+    for (const values of rows) {
+      const row = body.insertRow();
+      for (const value of values) row.insertCell().textContent = value;
+    }
+    $("roundCourses").append(period, rows.length ? courses : document.createTextNode("対象コースはありません。"));
   }
   function renderOpponentTeams() {
     const query = $("opponentTeamSearch").value.normalize("NFKC").toLowerCase();
@@ -983,7 +997,9 @@
   function isAppRecord(record) {
     return !record.id.startsWith("excel-datano:");
   }
-  function recordsTable(records, showAffiliation, matches = new Map(), winRates = new Map(), opponentFilter = null, cardFilter = null) {
+  function recordsTable(records, mode, matches = new Map(), winRates = new Map(), opponentFilter = null, cardFilter = null) {
+    const showAffiliation = mode !== "current";
+    const opponentHistory = mode === "opponent";
     const columns = [
       ["日付", r => [r.opponentConfirmedAt ? M.matchDateTime(r) : r.values.date,
         [r.values.season, r.values.round].filter(Boolean).join(" / "),
@@ -994,12 +1010,12 @@
       ["自カード", r => r.values.card],
       ...(showAffiliation ? [
         ["相手", r => r.values.opponent],
-        ["エリア・所属店", r => [r.values.homeArea, r.values.homeShop].filter(Boolean).join("\n")],
+        [opponentHistory ? "エリア：店舗" : "エリア・所属店", r => [r.values.homeArea, r.values.homeShop].filter(Boolean).join("\n")],
         ["チーム", r => r.values.teamShop
           ? `${r.values.team || "未入力"}\n所属店：${r.values.teamShop}` : r.values.team]
       ] : []),
       ["コース", r => r.values.course],
-      ["勝敗", r => r.values.win === "1" ? "勝ち" : r.values.win === "0" ? "負け" : "未入力"],
+      ...(!opponentHistory ? [["勝敗", r => r.values.win === "1" ? "勝ち" : r.values.win === "0" ? "負け" : "未入力"]] : []),
       ...(!showAffiliation ? [
         ["CNメモ・追加メモ", r => [
           r.values.nameNote ? `CN：${r.values.nameNote}` : "",
@@ -1028,22 +1044,58 @@
       const row = body.insertRow();
       row.classList.toggle("record-win", record.values.win === "1");
       row.classList.toggle("record-provisional", showAffiliation && isAppRecord(record));
+      const outcome = record.values.win === "1" ? "勝ち" : record.values.win === "0" ? "負け" : "未入力";
       row.title = (showAffiliation
         ? `相手ランク：${record.values.opponentRank || "未入力"}\n★・PRIDE：${C.formatStars(record.values.opponentStars) || "未入力"}` +
           `\n勝率：${winRates.get(record) || "照合不可（名前・所属店舗が必要）"}\n`
         : "") +
         `自車：${record.values.car || "未入力"}\n相手車：${record.values.opponentCar || "未入力"}` +
-        (showAffiliation ? `\nCNメモ：${record.values.nameNote || "未入力"}\n追加メモ：${record.values.note || "未入力"}` : "");
+        (showAffiliation ? `\nCNメモ：${record.values.nameNote || "未入力"}\n追加メモ：${record.values.note || "未入力"}` : "") +
+        (opponentHistory ? `\n勝敗：${outcome}` : "");
       const found = matches.get(record) || {};
+      function appendPair(cell, firstKey, secondKey) {
+        const first = record.values[firstKey];
+        const second = record.values[secondKey];
+        if (first) appendHighlighted(cell, first, found[firstKey]);
+        if (first && second) cell.append("：");
+        if (second) appendHighlighted(cell, second, found[secondKey]);
+        if (!first && !second) cell.append("－");
+      }
       for (const [label, value] of columns) {
         const cell = row.insertCell();
         if (label === "相手" && showAffiliation) {
-          appendHighlighted(cell, record.values.opponent || "—", found.opponent);
+          const name = record.values.opponent;
+          if (opponentHistory && name) {
+            const copy = document.createElement("button");
+            copy.type = "button";
+            copy.className = "opponent-copy";
+            copy.setAttribute("aria-label", `${name}をコピー（${outcome}）`);
+            appendHighlighted(copy, name, found.opponent);
+            copy.onclick = async () => {
+              const status = $("opponentCopyStatus");
+              status.hidden = false;
+              try {
+                if (!navigator.clipboard?.writeText) throw new Error("コピー非対応");
+                await navigator.clipboard.writeText(name);
+                status.textContent = "相手名をコピーしました。";
+              } catch {
+                status.textContent = "クリップボードにコピーできませんでした。相手名を選択して手動でコピーしてください。";
+              }
+            };
+            cell.append(copy);
+          } else appendHighlighted(cell, name || "—", found.opponent);
           for (const [key, caption] of [["nameNote", "CNメモ"], ["note", "追加メモ"]]) {
             if (!found[key]) continue;
             cell.append(document.createTextNode(`\n${caption}：`));
             appendHighlighted(cell, record.values[key], found[key]);
           }
+        } else if (label === "エリア：店舗") {
+          cell.append("所属＝");
+          appendPair(cell, "homeArea", "homeShop");
+          cell.append("\n対戦＝");
+          appendPair(cell, "battleArea", "battleShop");
+        } else if (opponentHistory && label === "チーム") {
+          appendPair(cell, "team", "teamShop");
         } else if (label === "エリア・所属店" && (found.homeArea || found.homeShop)) {
           if (record.values.homeArea) {
             appendHighlighted(cell, record.values.homeArea, found.homeArea);
@@ -1086,6 +1138,10 @@
       : "相手情報の入力開始時に時刻を取得します。未取得の場合は保存時刻を使います。";
     const rank = $("field-opponentRank");
     rank.dataset.rank = ["サファイア", "ルビー", "PRIDE"].includes(rank.value) ? rank.value : "";
+    const behavior = state.draft.values.behavior;
+    const brakeFlash = [behavior, C.label(state.settings, "behavior", behavior)]
+      .some(text => text.normalize("NFKC").includes("ブレフラ"));
+    for (const id of ["field-behavior", "manual-behavior"]) $(id).classList.toggle("brake-flash", brakeFlash);
     const excel = M.excelHistoryStats(state.records, state.draft.values, state.settings.shopAliases, state.draft.id, records);
     const format = stats => `${stats.wins}勝 / ${stats.matches}戦（${Math.round(stats.wins / stats.matches * 100)}%）`;
     const local = excel.local.matches
@@ -1109,26 +1165,44 @@
     const summary = document.createElement("p");
     summary.textContent = `保存済み ${records.length}戦` +
       (records.length ? `・勝率 ${M.formatWinRate(records)}` : "");
-    $("history").append(summary, recordsTable(records.slice(0, 10), false));
+    $("history").append(summary, recordsTable(records.slice(0, 10), "current"));
   }
   function renderInputRecords() {
     if (resetComplete) return;
     const all = state.records.filter(isAppRecord);
-    updateColumnFilter(inputOpponentFilter, all, "opponent");
-    updateColumnFilter(inputCardFilter, all.filter(M.opponentNameFilter(inputOpponentFilter.value)), "card");
-    const filter = M.opponentNameFilter(inputOpponentFilter.value);
-    const appRecords = all.filter(filter).filter(record => !inputCardFilter.value || record.values.card === inputCardFilter.value).reverse();
+    const show = $("inputRecords").open;
+    $("inputRecordCount").textContent = `(${all.length.toLocaleString("ja-JP")}件)`;
+    const status = $("inputRecordSearchInfo");
+    if (!show) {
+      $("inputRecordList").replaceChildren();
+      status.hidden = true;
+      return;
+    }
+    const query = $("search").value.trim();
+    const matches = new Map();
+    const matching = query ? all.filter(record => {
+      const ranges = M.recordSearchMatches(record, query);
+      if (!ranges) return false;
+      matches.set(record, ranges);
+      return true;
+    }) : all;
+    updateColumnFilter(inputOpponentFilter, matching, "opponent");
+    const byOpponent = matching.filter(M.opponentNameFilter(inputOpponentFilter.value));
+    updateColumnFilter(inputCardFilter, byOpponent, "card");
+    const appRecords = byOpponent.filter(record => !inputCardFilter.value || record.values.card === inputCardFilter.value).reverse();
     const winRates = M.opponentWinRates(state.records, state.settings.shopAliases, appRecords);
     const count = appRecords.length.toLocaleString("ja-JP");
+    status.hidden = appRecords.length !== 0;
+    status.textContent = appRecords.length ? "" : "該当する入力記録はありません。";
     $("inputRecordCount").textContent = appRecords.length === all.length ? `(${count}件)`
       : `(${count} / ${all.length.toLocaleString("ja-JP")}件)`;
-    renderFilteredTable("inputRecordList", appRecords, undefined, winRates, inputOpponentFilter, inputCardFilter);
+    renderFilteredTable("inputRecordList", appRecords, matches, winRates, inputOpponentFilter, inputCardFilter);
   }
   function updateColumnFilter(select, records, key) {
     const previous = select.value;
     const values = [...new Set(records.map(record => record.values[key]).filter(Boolean))];
     const names = key === "card"
-      ? M.sortCardNames(values, state.settings.catalog?.personal.cards.map(card => card.label) || state.settings.cards)
+      ? M.sortCardNames(values, cardNames())
       : values.sort((a, b) => a.localeCompare(b, "ja"));
     const options = document.createDocumentFragment();
     options.append(new Option("すべて", ""));
@@ -1140,7 +1214,7 @@
     const container = $(id);
     const left = container.firstElementChild?.scrollLeft || 0;
     const focused = [filter, cardFilter].includes(document.activeElement) ? document.activeElement : null;
-    const wrapper = recordsTable(rows, true, matches, rates, filter, cardFilter);
+    const wrapper = recordsTable(rows, id === "recordList" ? "opponent" : "input", matches, rates, filter, cardFilter);
     container.replaceChildren(wrapper);
     wrapper.scrollLeft = left;
     if (focused) focused.focus({ preventScroll: true });
@@ -1152,7 +1226,7 @@
     renderSavedRecords();
   }
   function renderSummary() {
-    const cards = state.settings.catalog?.personal.cards.map(card => card.label) || state.settings.cards;
+    const cards = cardNames();
     const seasons = M.summarizePivot(state.records, cards);
     const number = value => value.toLocaleString("ja-JP");
     const rate = stats => stats.total ? `${(stats.wins / stats.total * 100).toFixed(1)}%` : "—";
@@ -1173,11 +1247,15 @@
       parent.append(details);
       return details;
     }
-    function cardTable(parent, cards) {
-      const table = settingsTable(cards.map(card => [
+    function cardTable(parent, rows) {
+      const table = settingsTable(rows.map(card => [
         card.name || "未入力", number(card.wins), number(card.total), rate(card), number(card.unknown)
       ]), ["カード", "勝数", "戦数", "勝率", "未入力"]);
       table.classList.add("summary-table");
+      Array.from(table.tBodies[0].rows).forEach((row, index) => {
+        const color = cardColor(cards, rows[index].name);
+        if (color) row.dataset.cardColor = color;
+      });
       const wrapper = document.createElement("div");
       wrapper.className = "summary-table-scroll";
       wrapper.append(table);
@@ -1599,7 +1677,8 @@
     renderDraft();
     $("saveEntry").textContent = "この対戦を保存";
   });
-  $("savedRecords").ontoggle = () => renderSavedRecords();
+  $("inputRecords").ontoggle = renderInputRecords;
+  $("savedRecords").ontoggle = renderSavedRecords;
   $("historyPrevious").onclick = event => changeHistoryPage(-1, event.currentTarget);
   $("historyNext").onclick = event => changeHistoryPage(1, event.currentTarget);
   for (const [filter, title, list] of [
@@ -1621,9 +1700,14 @@
   historyCardFilter.onchange = () => { historyPage = 0; renderSavedRecords(); };
   $("search").oninput = () => {
     historyPage = 0;
-    const open = Boolean($("search").value.trim() || historyOpponentFilter.value);
-    if ($("savedRecords").open !== open) $("savedRecords").open = open;
-    else renderSavedRecords();
+    const searching = Boolean($("search").value.trim());
+    for (const [id, open, render] of [
+      ["inputRecords", searching || Boolean(inputOpponentFilter.value || inputCardFilter.value), renderInputRecords],
+      ["savedRecords", searching || Boolean(historyOpponentFilter.value || historyCardFilter.value), renderSavedRecords]
+    ]) {
+      if ($(id).open !== open) $(id).open = open;
+      else render();
+    }
   };
   $("cardTeam").onchange = () => {
     const card = C.selectedCard(state.settings, state.draft.values);
@@ -1673,7 +1757,10 @@
   });
   $("roundSeason").onchange = renderRoundChoices;
   $("roundSelector").onchange = renderRoundCourses;
-  $("opponentTeamSearch").oninput = renderOpponentTeams;
+  $("opponentTeamSearch").oninput = () => {
+    if ($("opponentTeamSearch").value.trim()) $("opponentTeams").open = true;
+    renderOpponentTeams();
+  };
   function clearMasterPreview(message = "") {
     masterPreview = null;
     $("masterPreview").hidden = true;

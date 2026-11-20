@@ -323,6 +323,23 @@
     const item = settings.catalog.common.behaviorCodes.find(item => item.code === value);
     return item ? `${item.label}（${value}）` : `未定義コード：${value}`;
   }
+  function roundCourseRows(courses, ids) {
+    const labels = new Map(courses.map(course => [course.id, course.label]));
+    const groups = new Map();
+    for (const id of ids) {
+      const label = labels.get(id);
+      if (!label) continue;
+      const separator = label.search(/[：:]/);
+      const name = separator < 0 ? label : label.slice(0, separator).trim();
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name).push(label);
+    }
+    return [...groups.values()].flatMap(labels => {
+      const rows = [];
+      for (let i = 0; i < labels.length; i += 2) rows.push([labels[i], labels[i + 1] || ""]);
+      return rows;
+    });
+  }
   function applyCard(settings, values) {
     const card = selectedCard(settings, values);
     if (!settings.catalog) return values;
@@ -588,7 +605,7 @@
     }
     return next;
   }
-  const api = { validate, withoutCardNumbers, readBundle, readMasters, masterTypesForFiles, readSelectedMasters, readDailyUpdate, readTimingMasters, masterCardDiffs, mergeMasters, merge, choices, label, selectedCard, selectedRound, applyCard, suggestContext, warnings, profiles, cardInfo, updateProfiles, updateOnlineEnabled, updateCardTeam, updateCardSlots, registerCard, registerTeam, registerList, opponentTeams, teamSuggestions, vehicleOptions, vehicleGroups, normalizeStars, formatStars, compactGarages, cleanOpponentLists };
+  const api = { validate, withoutCardNumbers, readBundle, readMasters, masterTypesForFiles, readSelectedMasters, readDailyUpdate, readTimingMasters, masterCardDiffs, mergeMasters, merge, choices, label, roundCourseRows, selectedCard, selectedRound, applyCard, suggestContext, warnings, profiles, cardInfo, updateProfiles, updateOnlineEnabled, updateCardTeam, updateCardSlots, registerCard, registerTeam, registerList, opponentTeams, teamSuggestions, vehicleOptions, vehicleGroups, normalizeStars, formatStars, compactGarages, cleanOpponentLists };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RecordCatalog = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

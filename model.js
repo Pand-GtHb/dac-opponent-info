@@ -17,7 +17,7 @@
   const defaultSettings = {
     cards: [], courses: [], cars: [], teams: [], teamShops: [], seasons: [], rounds: [], shopAliases: {}, shopsByArea: {}
   };
-  const recordSearchFields = ["opponent", "homeShop", "team", "nameNote", "note", "homeArea"];
+  const recordSearchFields = ["opponent", "homeShop", "team", "nameNote", "note", "homeArea", "battleArea", "battleShop", "teamShop"];
   const searchSegmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter("ja", { granularity: "grapheme" }) : null;
   const normalizeSearch = value => value.normalize("NFKC").toLowerCase();
   const recordSearchParts = record => recordSearchFields.map(key => normalizeSearch(record.values[key]));

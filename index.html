@@ -7,12 +7,12 @@
   <title>DAC 対戦記録 PoC</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=131">
-  <script defer src="./catalog.js?v=130"></script>
-  <script defer src="./model.js?v=129"></script>
+  <link rel="stylesheet" href="./style.css?v=132">
+  <script defer src="./catalog.js?v=132"></script>
+  <script defer src="./model.js?v=132"></script>
   <script defer src="./storage.js?v=117"></script>
-  <script defer src="./maintenance.js?v=131"></script>
-  <script defer src="./app.js?v=130"></script>
+  <script defer src="./maintenance.js?v=133"></script>
+  <script defer src="./app.js?v=133"></script>
 </head>
 <body>
 <header><div class="header-row"><h1>DAC 対戦記録 <small>PoC <span id="appVersion"></span></small></h1>
@@ -28,7 +28,6 @@
   <nav class="tabs" aria-label="画面切り替え">
     <button type="button" data-tab="entry" aria-pressed="true">入力</button>
     <button type="button" data-tab="summary" aria-pressed="false">実績</button>
-    <button type="button" data-tab="records" aria-pressed="false">記録・保存</button>
     <button type="button" data-tab="settings" aria-pressed="false">設定・バックアップ</button>
     <button type="button" id="themeToggle" disabled aria-label="暗色に切替" aria-pressed="false">Light/Dark</button>
   </nav>
@@ -43,9 +42,11 @@
           <div class="section-content">
             <div id="roundFields" class="session-fields"></div>
             <p id="opponentTimeInfo" class="hint" role="status" hidden></p>
-            <details data-details-key="round-courses"><summary>ラウンド別の対象コースを確認</summary>
-              <label>シーズン<select id="roundSeason"></select></label>
-              <label>ラウンド<select id="roundSelector"></select></label>
+            <details id="roundCourseDetails" data-details-key="round-courses"><summary>ラウンド別対象コース</summary>
+              <div class="round-course-selectors">
+                <label>シーズン<select id="roundSeason"></select></label>
+                <label>ラウンド<select id="roundSelector"></select></label>
+              </div>
               <div id="roundCourses"></div>
             </details>
           </div>
@@ -101,31 +102,6 @@
       <div id="history" class="section-content"></div>
     </section>
   </section>
-  <section id="records" hidden>
-    <section data-subpanel="input">
-    <h2>１．入力記録 <span id="inputRecordCount"></span></h2>
-    <div class="section-content">
-      <p class="hint">Excel未反映のアプリ仮登録を表示します。入力途中の下書きは含みません。</p>
-      <div id="inputRecordList"></div>
-    </div>
-    </section>
-    <section data-subpanel="export" hidden>
-    <h2>２．保存</h2>
-    <div class="section-content">
-    <fieldset id="excelExportFields" disabled>
-      <legend>Excel貼り付け用CSV（Ｄシート A～Y列）</legend>
-      <div class="export-date-range">
-        <label>開始日（省略可）<input id="excelFrom" type="date"></label>
-        <label>終了日（省略可）<input id="excelTo" type="date"></label>
-      </div>
-      <p class="hint">アプリ形式の対戦IDで保存された記録が対象です（再取込分を含み、Excel由来の正式Data_No.付き記録は除外）。期間を省略すると対象の全件を出力します。入力途中は含みません。</p>
-      <button type="button" id="excelCsv">Excel貼り付け用CSVを出力</button>
-      <p id="excelCsvInfo" role="status"></p>
-      <p class="hint">CSVをExcelで開き、見出しを除く25列をコピーし、Ｄシートの追記先A列から「値」として貼り付けてください。X列は仮No.、Y列は日時（時刻不明は日付のみ）です。Excelで時刻を見るには表示形式を yyyy/mm/dd hh:mm:ss にしてください。Z列以降には貼り付けません。再出力にも同じ記録を含むため、X列の仮No.で二重転記を確認してください。</p>
-    </fieldset>
-    </div>
-    </section>
-  </section>
   <section id="summary" hidden>
     <section data-subpanel="cards">
     <h2>１．カード別戦績</h2>
@@ -140,11 +116,18 @@
     <section data-subpanel="history" hidden>
     <h2>３．対戦相手</h2>
     <div class="section-content">
-    <label>名前・エリア・店舗・チーム・メモで絞り込み<input id="search" type="search"></label>
-    <p class="hint">検索・相手列の絞り込みは全件が対象です。一覧は50件ずつ表示します。</p>
+    <label>名前・エリア・店舗・チーム・メモで絞り込み<input id="search" type="search" aria-controls="inputRecordList recordList"></label>
+    <p class="hint">同じ検索条件で入力記録と対戦一覧を絞り込みます。対戦一覧は50件ずつ表示します。</p>
+    <details id="inputRecords" data-details-key="input-records">
+      <summary>入力記録 <span id="inputRecordCount"></span></summary>
+      <p class="hint">Excel未反映のアプリ仮登録を表示します。入力途中の下書きは含みません。</p>
+      <p id="inputRecordSearchInfo" role="status" hidden></p>
+      <div id="inputRecordList"></div>
+    </details>
     <details id="savedRecords" data-details-key="saved-records">
       <summary>対戦一覧 <span id="recordCount"></span></summary>
       <p id="recordSearchInfo" role="status"></p>
+      <p id="opponentCopyStatus" class="hint" role="status" hidden></p>
       <p class="hint">「登録No.」列に仮No.または正式なData_No.を表示します。仮登録の行は茶色の文字です。勝ちの行の青い背景は維持します。番号のない旧記録は「—」と表示します。</p>
       <nav id="historyPages" aria-label="過去実績のページ切替" hidden>
         <button type="button" id="historyPrevious" aria-controls="recordList">前へ</button>
@@ -158,8 +141,8 @@
     <section data-subpanel="teams" hidden>
     <h2>４．対戦チーム</h2>
     <div class="section-content">
-      <details data-details-key="opponent-teams"><summary>相手チーム・チーム所属店舗</summary>
-        <label>チーム・店舗で絞り込み<input id="opponentTeamSearch" type="search"></label>
+      <label>チーム・店舗で絞り込み<input id="opponentTeamSearch" type="search"></label>
+      <details id="opponentTeams" data-details-key="opponent-teams"><summary>相手チーム・チーム所属店舗</summary>
         <div id="opponentTeamList" class="table-scroll"></div>
         <p class="hint">保存済みの対戦記録から、相手のチームと所属店舗の組を表示します。</p>
       </details>
@@ -210,6 +193,20 @@
     <h2>２．バックアップ</h2>
     <aside class="notice">この端末のブラウザに保存します。サイトデータの削除や端末故障に備えてバックアップしてください。CSVはダウンロード出力です。</aside>
     <div class="settings-section">
+    <details data-details-key="excel-export">
+      <summary>Excel貼り付け用CSV</summary>
+      <fieldset id="excelExportFields" disabled>
+        <legend>Ｄシート A～Y列</legend>
+        <div class="export-date-range">
+          <label>開始日（省略可）<input id="excelFrom" type="date"></label>
+          <label>終了日（省略可）<input id="excelTo" type="date"></label>
+        </div>
+        <p class="hint">アプリ形式の対戦IDで保存された記録が対象です（再取込分を含み、Excel由来の正式Data_No.付き記録は除外）。期間を省略すると対象の全件を出力します。入力途中は含みません。</p>
+        <button type="button" id="excelCsv">Excel貼り付け用CSVを出力</button>
+        <p id="excelCsvInfo" role="status"></p>
+        <p class="hint">CSVをExcelで開き、見出しを除く25列をコピーし、Ｄシートの追記先A列から「値」として貼り付けてください。X列は仮No.、Y列は日時（時刻不明は日付のみ）です。Excelで時刻を見るには表示形式を yyyy/mm/dd hh:mm:ss にしてください。Z列以降には貼り付けません。再出力にも同じ記録を含むため、X列の仮No.で二重転記を確認してください。</p>
+      </fieldset>
+    </details>
     <p>CSVは保存済み対戦のみ。JSONには下書き・設定も含み、復元に使えます。出力したファイルの保管先を確認してください。</p>
     <button type="button" id="csv" disabled>集計後CSV v1を出力（入力用）</button>
     <button type="button" id="backup" disabled>JSONバックアップ</button>
