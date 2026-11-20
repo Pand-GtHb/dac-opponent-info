@@ -20,6 +20,34 @@
       tx.onabort = () => reject(tx.error || new Error("読み込みが中断されました。"));
     });
   }
+  function readDetails(db) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("state", "readonly");
+      const request = tx.objectStore("state").get("details");
+      tx.oncomplete = () => resolve(request.result);
+      tx.onabort = () => reject(tx.error || new Error("表示状態の読み込みが中断されました。"));
+    });
+  }
+  function writeDetails(db, value, expectedRevision) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("state", "readwrite");
+      const store = tx.objectStore("state");
+      let conflict = false;
+      const request = store.get("main");
+      request.onsuccess = () => {
+        if (request.result?.reset || (request.result?.revision ?? 0) !== expectedRevision) {
+          conflict = true;
+          tx.abort();
+          return;
+        }
+        store.put(value, "details");
+      };
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(conflict
+        ? new Error("別タブでデータが更新されました。この画面の救出用JSONを保存してから再読み込みしてください。")
+        : tx.error || new Error("表示状態の保存が中断されました。"));
+    });
+  }
   function commit(db, value, expectedRevision, clear) {
     return new Promise((resolve, reject) => {
       const tx = db.transaction("state", "readwrite");
@@ -48,5 +76,5 @@
     // Keep only the revision marker so stale tabs cannot restore erased data.
     return commit(db, { reset: true }, expectedRevision, true);
   }
-  root.RecordStorage = { open, read, write, clear };
+  root.RecordStorage = { open, read, write, clear, readDetails, writeDetails };
 })(globalThis);

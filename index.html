@@ -7,35 +7,50 @@
   <title>DAC 対戦記録 PoC</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=105">
+  <link rel="stylesheet" href="./style.css?v=129">
   <script defer src="./catalog.js?v=102"></script>
-  <script defer src="./model.js?v=103"></script>
-  <script defer src="./storage.js?v=98"></script>
-  <script defer src="./maintenance.js?v=105"></script>
-  <script defer src="./app.js?v=105"></script>
+  <script defer src="./model.js?v=129"></script>
+  <script defer src="./storage.js?v=117"></script>
+  <script defer src="./maintenance.js?v=129"></script>
+  <script defer src="./app.js?v=129"></script>
 </head>
 <body>
-<header><h1>DAC 対戦記録 <small>PoC <span id="appVersion"></span></small></h1>
+<header><div class="header-row"><h1>DAC 対戦記録 <small>PoC <span id="appVersion"></span></small></h1>
+  <div class="header-card-row">
+    <label class="header-card-label plain-label"><span class="header-caption">カード</span><select id="headerCard" disabled aria-label="記録するカード"></select></label>
+    <span class="header-rank-stars"><span class="header-rank" aria-label="ランク"><span class="header-caption">ランク </span><strong id="headerRank">未入力</strong></span><span class="header-stars" aria-label="星数"><span class="header-caption">星数 </span><strong id="headerStars" class="star-groups">未入力</strong></span></span>
+  </div>
+  </div>
   <p id="error" role="alert" hidden></p>
 </header>
 <main>
+  <div class="top-navigation">
   <nav class="tabs" aria-label="画面切り替え">
     <button type="button" data-tab="entry" aria-pressed="true">入力</button>
+    <button type="button" data-tab="summary" aria-pressed="false">実績</button>
     <button type="button" data-tab="records" aria-pressed="false">記録・保存</button>
     <button type="button" data-tab="settings" aria-pressed="false">設定・バックアップ</button>
+    <button type="button" id="themeToggle" disabled aria-label="暗色に切替" aria-pressed="false">Light/Dark</button>
   </nav>
+  <nav id="subtabs" class="subtabs" aria-label="項目切り替え"></nav>
+  </div>
   <section id="entry">
     <h2 id="entryTitle" hidden></h2>
     <form id="entryForm">
       <fieldset id="entryFields" disabled>
-        <section>
+        <section class="battle-section" data-subpanel="round">
           <h2>１．ラウンド情報</h2>
           <div class="section-content">
             <div id="roundFields" class="session-fields"></div>
             <p id="opponentTimeInfo" class="hint" role="status" hidden></p>
+            <details data-details-key="round-courses"><summary>ラウンド別の対象コースを確認</summary>
+              <label>シーズン<select id="roundSeason"></select></label>
+              <label>ラウンド<select id="roundSelector"></select></label>
+              <div id="roundCourses"></div>
+            </details>
           </div>
         </section>
-        <section>
+        <section class="battle-section" data-subpanel="card" hidden>
           <h2>２．カード情報</h2>
           <div class="section-content">
             <div id="cardFields" class="session-fields"></div>
@@ -48,7 +63,7 @@
               <dialog id="cardVehiclePicker" aria-labelledby="cardVehiclePickerTitle">
                 <h3 id="cardVehiclePickerTitle" tabindex="-1" autofocus></h3>
                 <div id="garageSlotVehicles"></div>
-                <details id="otherSlotVehicles">
+                <details id="otherSlotVehicles" data-details-key="other-vehicles">
                   <summary>その他車種</summary>
                   <div id="allSlotVehicles"></div>
                 </details>
@@ -59,16 +74,19 @@
               <p id="cardSlotStatus" class="hint" role="status"></p>
             </div>
             <button type="button" id="saveCardRank" hidden>表示中の自ランク・星をカード設定に保存</button>
+            <p id="cardRoundSummary" class="hint" role="status"></p>
             <p id="catalogWarnings" class="hint" role="status"></p>
           </div>
         </section>
-        <section>
+        <section class="battle-section" data-subpanel="battle" hidden>
           <h2>３．対戦情報</h2>
           <div class="section-content">
             <p id="pasteInfo" class="hint" role="status"></p>
             <div id="primaryFields" class="grid"></div>
-            <details id="affiliationFields" class="full-width"><summary>所属情報</summary><div id="extraFields" class="grid"></div></details>
+            <p id="excelOpponentResult" class="hint" role="status"></p>
+            <details id="affiliationFields" class="full-width" data-details-key="affiliation"><summary>所属情報</summary><div id="extraFields" class="grid"></div></details>
             <button type="submit" id="saveEntry" class="primary save-entry" aria-live="polite">この対戦を保存</button>
+            <p id="saveReminder" class="save-reminder" role="status" hidden>対戦はまだ確定していません。入力後に「この対戦を保存」を押してください。</p>
             <div class="entry-actions">
               <button type="button" id="newEntry">現在の下書きを破棄して新規入力</button>
               <button type="button" id="quickCsv">CSV出力</button>
@@ -79,16 +97,19 @@
         </section>
       </fieldset>
     </form>
-    <section><h2>４．対戦実績</h2>
+    <section data-subpanel="history" hidden><h2>４．対戦実績</h2>
       <div id="history" class="section-content"></div>
     </section>
   </section>
   <section id="records" hidden>
+    <section data-subpanel="input">
     <h2>１．入力記録 <span id="inputRecordCount"></span></h2>
     <div class="section-content">
       <p class="hint">Excel未反映のアプリ仮登録を表示します。入力途中の下書きは含みません。</p>
       <div id="inputRecordList"></div>
     </div>
+    </section>
+    <section data-subpanel="export" hidden>
     <h2>２．保存</h2>
     <div class="section-content">
     <fieldset id="excelExportFields" disabled>
@@ -103,11 +124,25 @@
       <p class="hint">CSVをExcelで開き、見出しを除く25列をコピーし、Ｄシートの追記先A列から「値」として貼り付けてください。X列は仮No.、Y列は日時（時刻不明は日付のみ）です。Excelで時刻を見るには表示形式を yyyy/mm/dd hh:mm:ss にしてください。Z列以降には貼り付けません。再出力にも同じ記録を含むため、X列の仮No.で二重転記を確認してください。</p>
     </fieldset>
     </div>
-    <h2>３．過去実績</h2>
+    </section>
+  </section>
+  <section id="summary" hidden>
+    <section data-subpanel="cards">
+    <h2>１．カード別戦績</h2>
+    <p class="hint">この端末に保存された正式記録とアプリ入力記録を集計します。未保存の下書きは含みません。履歴の保持範囲外は含まれません。</p>
+    <div id="summaryCards" class="section-content"></div>
+    </section>
+    <section data-subpanel="days" hidden>
+    <h2>２．日別戦績</h2>
+    <p class="hint">この端末に保存された正式記録とアプリ入力記録を集計します。未保存の下書きは含みません。履歴の保持範囲外は含まれません。</p>
+    <div id="summaryDays" class="section-content"></div>
+    </section>
+    <section data-subpanel="history" hidden>
+    <h2>３．対戦相手</h2>
     <div class="section-content">
     <label>名前・エリア・店舗・チーム・メモで絞り込み<input id="search" type="search"></label>
     <p class="hint">検索・相手列の絞り込みは全件が対象です。一覧は50件ずつ表示します。</p>
-    <details id="savedRecords">
+    <details id="savedRecords" data-details-key="saved-records">
       <summary>対戦一覧 <span id="recordCount"></span></summary>
       <p id="recordSearchInfo" role="status"></p>
       <p class="hint">「登録No.」列に仮No.または正式なData_No.を表示します。仮登録の行は茶色の文字です。勝ちの行の青い背景は維持します。番号のない旧記録は「—」と表示します。</p>
@@ -119,9 +154,21 @@
       <div id="recordList"></div>
     </details>
     </div>
+    </section>
+    <section data-subpanel="teams" hidden>
+    <h2>４．対戦チーム</h2>
+    <div class="section-content">
+      <details data-details-key="opponent-teams"><summary>相手チーム・チーム所属店舗</summary>
+        <label>チーム・店舗で絞り込み<input id="opponentTeamSearch" type="search"></label>
+        <div id="opponentTeamList" class="table-scroll"></div>
+        <p class="hint">保存済みの対戦記録から、相手のチームと所属店舗の組を表示します。</p>
+      </details>
+    </div>
+    </section>
   </section>
   <section id="settings" hidden>
-    <h2>１．設定：マスター登録</h2>
+    <section data-subpanel="master">
+    <h2>１．マスター登録</h2>
     <div class="settings-section">
     <fieldset id="masterFields" disabled>
       <section class="master-step">
@@ -157,17 +204,9 @@
     <p class="hint">以前の未適用の設定編集はバックアップに残りますが、この画面では適用できません。必要な変更はマスター側で登録してください。</p>
     <p class="hint">以前アプリで編集したカード・チームも、該当マスターを取り込むとExcelの内容で置き換わります。</p>
     <p id="catalogInfo" role="status"></p>
-    <details><summary>ラウンド別の対象コースを確認</summary>
-      <label>シーズン<select id="roundSeason"></select></label>
-      <label>ラウンド<select id="roundSelector"></select></label>
-      <div id="roundCourses"></div>
-    </details>
-    <details><summary>相手チーム・チーム所属店舗</summary>
-      <label>チーム・店舗で絞り込み<input id="opponentTeamSearch" type="search"></label>
-      <div id="opponentTeamList" class="table-scroll"></div>
-      <p class="hint">保存済みの対戦記録から、相手のチームと所属店舗の組を表示します。</p>
-    </details>
     </div>
+    </section>
+    <section data-subpanel="backup" hidden>
     <h2>２．バックアップ</h2>
     <aside class="notice">この端末のブラウザに保存します。サイトデータの削除や端末故障に備えてバックアップしてください。CSVはダウンロード出力です。</aside>
     <div class="settings-section">
@@ -183,6 +222,8 @@
     <label>JSONバックアップを復元（現在のデータを置き換えます）<input id="restore" type="file" accept=".json,application/json" disabled></label>
     <p>Excel集計後CSVは付属の変換ツールで対戦記録CSV v1へ変換して追加できます。サーバー同期・自動CSV追記は未実装です。HTTPSで配信するとオフライン起動にも対応します。</p>
     </div>
+    </section>
+    <section data-subpanel="maintenance" hidden>
     <h2>３．保守・データ管理</h2>
     <div class="settings-section">
       <section class="master-step">
@@ -207,7 +248,7 @@
         </section>
         <section class="master-step">
           <h3>（４）完全初期化【取り消せません】</h3>
-          <details>
+          <details data-details-key="reset">
             <summary>このアプリの端末内データをすべて消去する</summary>
             <p>保存済み記録・下書き・設定・採番履歴と、このアプリ用キャッシュ・オフライン登録を消去します。Excelやダウンロード済みファイル、ほかのアプリのデータは消しません。</p>
             <p class="hint">最初に「２．バックアップ」でJSONバックアップを出力し、ファイルが保管できていることを確認してください。ダウンロード開始だけでは保管完了を確認できません。</p>
@@ -230,8 +271,9 @@
         </label>
       </section>
     </div>
+    </section>
   </section>
-  <footer><small id="status" role="status" aria-live="polite">読み込み中…</small></footer>
+  <footer><small id="status" role="status" aria-live="polite">読み込み中…</small><small id="footerVersion"></small></footer>
 </main>
 </body>
 </html>

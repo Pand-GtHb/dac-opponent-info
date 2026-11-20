@@ -45,12 +45,13 @@
   function opponentNameFilter(name) {
     return name ? record => record.values.opponent === name : () => true;
   }
-  function recordHistoryPage(records, input, requestedPage, opponent = "") {
+  function recordHistoryPage(records, input, requestedPage, opponent = "", card = "") {
     const pageSize = 50;
     const query = normalizeSearch(input);
     const searchRows = query
       ? records.filter(record => recordSearchParts(record).join(" ").includes(query)) : records;
-    const matching = opponent ? searchRows.filter(opponentNameFilter(opponent)) : searchRows;
+    const opponentRows = opponent ? searchRows.filter(opponentNameFilter(opponent)) : searchRows;
+    const matching = card ? opponentRows.filter(record => record.values.card === card) : opponentRows;
     const visible = opponent && !matching.length ? searchRows : matching;
     if (visible !== matching) requestedPage = 0;
     const total = visible.length;
@@ -155,18 +156,89 @@
       values: Object.fromEntries(fields.map(([key]) => [key, key === "date" ? date : ""]))
     };
   }
+  function hasMatchDraft(draft, paste = "", playerSearch = "") {
+    const session = new Set(["date", "season", "round", "card", "myRank", "myStars", "normalizedName"]);
+    return Boolean(paste || playerSearch || fields.some(([key]) =>
+      !session.has(key) && draft.values[key] &&
+      !(key === "opponentRank" && draft.values[key] === draft.values.myRank)));
+  }
+  function summarizeMatches(records, season, round) {
+    const groups = new Map();
+    for (const { values } of records) {
+      if (values.season !== season || values.round !== round) continue;
+      const card = values.card || "未入力";
+      const date = values.date || "未入力";
+      const key = JSON.stringify([card, date]);
+      if (!groups.has(key)) groups.set(key, { card, date, wins: 0, total: 0, unknown: 0 });
+      const group = groups.get(key);
+      group.total++;
+      if (values.win === "1") group.wins++;
+      else if (values.win !== "0") group.unknown++;
+    }
+    return [...groups.values()].sort((a, b) => a.card.localeCompare(b.card, "ja") || a.date.localeCompare(b.date));
+  }
+  function cardNameComparator(cardOrder) {
+    const order = new Map(cardOrder.map((name, index) => [name, index]));
+    return (a, b) => (order.get(a) ?? Infinity) - (order.get(b) ?? Infinity) ||
+      a.localeCompare(b, "ja", { numeric: true });
+  }
+  function sortCardNames(names, cardOrder) {
+    return [...names].sort(cardNameComparator(cardOrder));
+  }
+  function summarizePivot(records, cardOrder) {
+    const seasons = new Map();
+    const increment = (group, win) => {
+      group.total++;
+      if (win === "1") group.wins++;
+      else if (win !== "0") group.unknown++;
+    };
+    const group = name => ({ name, wins: 0, total: 0, unknown: 0 });
+    const get = (map, name, create) => {
+      if (!map.has(name)) map.set(name, create(name));
+      return map.get(name);
+    };
+    for (const { values } of records) {
+      const season = get(seasons, values.season, name => ({ ...group(name), rounds: new Map() }));
+      const round = get(season.rounds, values.round, name => ({ ...group(name), cards: new Map(), days: new Map() }));
+      const card = get(round.cards, values.card, group);
+      const day = get(round.days, values.date, name => ({ ...group(name), cards: new Map() }));
+      const dayCard = get(day.cards, values.card, group);
+      for (const item of [season, round, card, day, dayCard]) increment(item, values.win);
+    }
+    const byName = (a, b) => a.name.localeCompare(b.name, "ja", { numeric: true });
+    const compareCardNames = cardNameComparator(cardOrder);
+    const byCard = (a, b) => compareCardNames(a.name, b.name);
+    const roundNumber = name => {
+      const normalized = name.normalize("NFKC").trim();
+      if (normalized === "オープン") return 1.5;
+      const ordinal = /^(\d+)(?:st|nd|rd|th)$/i.exec(normalized);
+      return ordinal ? Number(ordinal[1]) : Infinity;
+    };
+    const byRound = (a, b) => roundNumber(a.name) - roundNumber(b.name) || byName(a, b);
+    return [...seasons.values()].sort(byName).map(season => ({
+      ...season,
+      rounds: [...season.rounds.values()].sort(byRound).map(round => ({
+        ...round,
+        cards: [...round.cards.values()].sort(byCard),
+        days: [...round.days.values()].sort(byName).map(day => ({
+          ...day, cards: [...day.cards.values()].sort(byCard)
+        }))
+      }))
+    }));
+  }
   function opponentIdentity(values, aliases) {
     return [normalizeName(values.opponent.trim()), shopKey(values.homeShop, aliases)];
   }
   function hasCurrentOpponentTime(record, aliases = {}) {
     return record.opponentConfirmedAt !== undefined &&
-      (record.opponentConfirmedIdentity === undefined ||
+      (record.opponentTimeMode === "input" || record.opponentConfirmedIdentity === undefined ||
         JSON.stringify(record.opponentConfirmedIdentity) === JSON.stringify(opponentIdentity(record.values, aliases)));
   }
   function captureOpponentTime(draft, values, aliases, now = new Date()) {
     const identity = opponentIdentity(values, aliases);
     if (!identity[0]) throw new Error("対戦時刻を記録するには相手名が必要です。");
-    if (draft.opponentConfirmedAt && JSON.stringify(draft.opponentConfirmedIdentity) === JSON.stringify(identity)) {
+    if (draft.opponentConfirmedAt && (draft.opponentTimeMode === "input" ||
+        JSON.stringify(draft.opponentConfirmedIdentity) === JSON.stringify(identity))) {
       return { ...draft, values };
     }
     if (Number.isNaN(now.getTime())) throw new Error("端末の日時が不正です。");
@@ -177,7 +249,15 @@
       `${offset < 0 ? "-" : "+"}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`;
     return { ...draft, values, opponentConfirmedAt: at, opponentConfirmedIdentity: identity };
   }
+  function startOpponentTime(draft, values, aliases, now = new Date()) {
+    if (!values.opponent.trim()) return { ...draft, values };
+    const next = captureOpponentTime(draft, values, aliases, now);
+    return { ...next, opponentTimeMode: "input" };
+  }
   function validateOpponentTime(record) {
+    if (record.opponentTimeMode !== undefined && (record.opponentTimeMode !== "input" || !record.opponentConfirmedAt)) {
+      throw new Error("対戦時刻の取得方法が不正です。");
+    }
     if (record.opponentConfirmedAt !== undefined) {
       const at = record.opponentConfirmedAt;
       const match = typeof at === "string" &&
@@ -262,6 +342,7 @@
   }
   function validateSettings(settings) {
     if (!settings || typeof settings !== "object") throw new Error("設定が不正です。");
+    if (settings.theme !== undefined && !["light", "dark"].includes(settings.theme)) throw new Error("画面配色が不正です。");
     if (settings.catalog !== undefined) Catalog.validate(settings.catalog);
     for (const key of ["cards", "courses", "cars", "teams", "rounds"]) {
       if (!Array.isArray(settings[key]) || settings[key].some(v => typeof v !== "string")) {
@@ -300,6 +381,21 @@
     validateDraft(record);
     if (!record.values.opponent.trim() || !record.values.date) throw new Error("名前・日付が必要です。");
     if (record.temporaryNo !== undefined) parseTemporaryNo(record.temporaryNo);
+    if (record.excelHistory !== undefined) {
+      const history = record.excelHistory;
+      if (!record.id.startsWith("excel-datano:") || !history || typeof history !== "object" || Array.isArray(history) ||
+          !Number.isSafeInteger(history.sourceRow) || history.sourceRow < 10 ||
+          (history.snapshotId !== undefined && (typeof history.snapshotId !== "string" || !history.snapshotId))) {
+        throw new Error("Excel過去実績の基準行が不正です。");
+      }
+      for (const [total, wins] of [["matches", "wins"], ["courseMatches", "courseWins"]]) {
+        if (!(history[total] === null && history[wins] === null) &&
+            (!Number.isSafeInteger(history[total]) || !Number.isSafeInteger(history[wins]) ||
+             history[total] < 0 || history[wins] < 0 || history[wins] > history[total])) {
+          throw new Error("Excel過去実績の勝数・戦数が不正です。");
+        }
+      }
+    }
   }
   function parseTemporaryNo(value) {
     const match = typeof value === "string" && /^(\d{8}-[\s\S]+-)(\d{3})$/.exec(value);
@@ -392,6 +488,54 @@
       shopKey(r.values.homeShop, aliases) === shop).sort((a, b) =>
       b.values.date.localeCompare(a.values.date) || (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   }
+  function excelHistoryStats(records, values, aliases, excludeId, matches = findHistory(records, values, aliases, excludeId)) {
+    const official = matches.filter(record => record.id.startsWith("excel-datano:"));
+    const local = matches.filter(record => !record.id.startsWith("excel-datano:"));
+    const localStats = { matches: local.length, wins: local.filter(record => record.values.win === "1").length,
+      unknown: local.filter(record => !["0", "1"].includes(record.values.win)).length };
+    if (!values.opponent.trim() || !values.homeShop.trim()) return { reason: "相手名と所属店を選択してください", local: localStats };
+    if (!official.length) return { reason: "Excel基準の履歴なし", local: localStats };
+    if (official.some(record => record.values.homeShop.trim() !== values.homeShop.trim())) {
+      return { reason: "店舗別名の照合はExcelと異なるため確認が必要です", local: localStats };
+    }
+    if (official.some(record => !record.excelHistory)) {
+      return { reason: "Excel基準値を含む04マスターが必要です", local: localStats };
+    }
+    if (!official[0].excelHistory.snapshotId ||
+        official.some(record => record.excelHistory.snapshotId !== official[0].excelHistory.snapshotId) ||
+        new Set(official.map(record => record.excelHistory.sourceRow)).size !== official.length) {
+      return { reason: "異なるExcel基準の履歴が混在しているため確認が必要です", local: localStats };
+    }
+    const latest = rows => rows.reduce((a, b) => !a || b.excelHistory.sourceRow > a.excelHistory.sourceRow ? b : a, null);
+    const count = (record, total, wins) => {
+      if (!record || record.excelHistory[total] === null || !["0", "1"].includes(record.values.win)) return null;
+      return { matches: record.excelHistory[total] + 1,
+        wins: record.excelHistory[wins] + (record.values.win === "1" ? 1 : 0), id: record.id };
+    };
+    const total = count(latest(official), "matches", "wins");
+    const course = values.course ? count(latest(official.filter(record => record.values.course === values.course)),
+      "courseMatches", "courseWins") : null;
+    return { total, course, reason: total ? "" : "Excel基準値が空欄または勝敗不明です", local: localStats };
+  }
+  function winRateColor(wins, matches) {
+    if (!Number.isSafeInteger(wins) || !Number.isSafeInteger(matches) || matches <= 0 || wins < 0 || wins > matches) return null;
+    const stops = [[0.4, [255, 255, 0]], [0.6, [51, 153, 255]], [0.9, [216, 131, 255]]];
+    const rate = wins / matches;
+    const upper = stops.findIndex(([position]) => rate <= position);
+    let rgb;
+    if (upper <= 0) rgb = stops[upper === -1 ? stops.length - 1 : 0][1];
+    else {
+      const [x0, a] = stops[upper - 1], [x1, b] = stops[upper];
+      const ratio = (rate - x0) / (x1 - x0);
+      rgb = a.map((value, i) => Math.round(value + (b[i] - value) * ratio));
+    }
+    const linear = rgb.map(value => {
+      const component = value / 255;
+      return component <= 0.04045 ? component / 12.92 : ((component + 0.055) / 1.055) ** 2.4;
+    });
+    const luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+    return { background: `rgb(${rgb.join(", ")})`, foreground: luminance > 0.179 ? "#000000" : "#ffffff" };
+  }
   function opponentWinRates(records, aliases, visible = records) {
     const keyOf = ({ values }) => JSON.stringify([normalizeName(values.opponent), shopKey(values.homeShop, aliases)]);
     const groups = new Map(), rates = new Map(), rowKeys = new Map();
@@ -449,11 +593,18 @@
     temporaryNoIndex(records);
     const incoming = structuredClone(data.records);
     const ids = new Set();
+    const sourceRows = new Set();
+    const snapshotId = crypto.randomUUID();
     for (const record of incoming) {
       validateRecord(record);
       if (!/^excel-datano:\d+$/.test(record.id)) throw new Error("対戦履歴マスターには正式なData_No.が必要です。");
       if (ids.has(record.id)) throw new Error("対戦履歴マスターのData_No.が重複しています。");
       ids.add(record.id);
+      if (record.excelHistory) {
+        if (sourceRows.has(record.excelHistory.sourceRow)) throw new Error("Excel過去実績の基準行が重複しています。");
+        sourceRows.add(record.excelHistory.sourceRow);
+        record.excelHistory.snapshotId = snapshotId;
+      }
     }
     const numbers = temporaryNoIndex(incoming);
     const local = records.filter(record => !record.id.startsWith("excel-datano:"));
@@ -462,8 +613,10 @@
       .map(record => [record.id, record]));
     const result = [...incoming, ...kept];
     temporaryNoIndex(result);
+    const historyValues = history => history && [history.sourceRow, history.matches, history.wins, history.courseMatches, history.courseWins];
     const changed = (a, b) => JSON.stringify(a.values) !== JSON.stringify(b.values) ||
-      a.temporaryNo !== b.temporaryNo || a.opponentConfirmedAt !== b.opponentConfirmedAt;
+      a.temporaryNo !== b.temporaryNo || a.opponentConfirmedAt !== b.opponentConfirmedAt ||
+      JSON.stringify(historyValues(a.excelHistory)) !== JSON.stringify(historyValues(b.excelHistory));
     return {
       records: result,
       added: incoming.filter(record => !previous.has(record.id)).length,
@@ -729,7 +882,7 @@
     if (/^\s*'(?=[=+\-@])/.test(value)) return value.replace(/^(\s*)'/, "$1");
     return value;
   }
-  const api = { fields, defaultSettings, prefectures, recordSearchMatches, recordHistoryPage, opponentNameFilter, searchHighlightParts, formatWinRate, opponentWinRates, formatCourseChoiceRate, formatCourseResult, playerSuggestions, applyPlayerCandidate, applyUnknownPlayer, syncDefaultOpponentRank, teamSuggestions, newDraft, captureOpponentTime, hasCurrentOpponentTime, matchDateTime, normalizeName, shopKey, parsePaste, applyPaste, applyPasteWithHistory, mergeTemporaryCounters, nextTemporaryNo,
+  const api = { fields, defaultSettings, prefectures, recordSearchMatches, recordHistoryPage, opponentNameFilter, searchHighlightParts, formatWinRate, opponentWinRates, excelHistoryStats, winRateColor, formatCourseChoiceRate, formatCourseResult, playerSuggestions, applyPlayerCandidate, applyUnknownPlayer, syncDefaultOpponentRank, teamSuggestions, newDraft, hasMatchDraft, summarizeMatches, summarizePivot, sortCardNames, startOpponentTime, captureOpponentTime, hasCurrentOpponentTime, matchDateTime, normalizeName, shopKey, parsePaste, applyPaste, applyPasteWithHistory, mergeTemporaryCounters, nextTemporaryNo,
     validateSettings, validateDraft, validateRecord, validateBackup, withoutCardNumbers, findHistory, previousCourseMatch, previousOutcome, upsert, mergeHistory, replaceHistory, toCsv, toImportCsv, toExcelCsv, toCardSlotsCsv, mergeImportCsv };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RecordModel = api;
