@@ -257,6 +257,15 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 .records-table th { background: #e5eeea; white-space: nowrap; text-align: center; vertical-align: middle; }
 .records-table .opponent-column-filter { display: block; width: 7rem; margin: 3px auto 0; padding-inline: 3px; }
 .records-table .history-date-filter { width: 9rem; }
+#recordEditor { width: min(38rem, calc(100% - 24px)); max-height: 90dvh; border: 1px solid #879d94; border-radius: 8px; background: var(--sheet-background); color: inherit; }
+#recordEditor::backdrop { background: #0008; }
+#recordEditorInputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+#recordEditorInputs label { display: block; min-width: 0; font-size: .9rem; }
+#recordEditorInputs label > span { display: block; }
+#recordEditorInputs label > input, #recordEditorInputs label > select, #recordEditorInputs label > textarea { width: 100%; }
+#recordEditorInputs label > select + input { margin-top: 4px; }
+.record-editor-actions { position: sticky; bottom: 0; display: flex; gap: 8px; padding-top: 8px; background: var(--sheet-background); }
+@media (max-width: 520px) { #recordEditorInputs { grid-template-columns: 1fr; } }
 .records-table td { min-width: 5rem; max-width: 16rem; white-space: pre-line; overflow-wrap: anywhere; }
 .records-table .opponent-copy { background: none; border: 0; color: inherit; margin: 0; padding: 0; min-height: 28px;
   text-align: left; text-decoration: underline; overflow-wrap: anywhere; user-select: text; }
@@ -311,7 +320,16 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 #field-behavior.brake-flash, #manual-behavior.brake-flash { background: #ad2635; color: white; }
 #field-behavior option { color: #172f29; background: white; }
 .entry-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
-#quickCsv { margin-left: auto; }
+#newEntry { color: #a71919; }
+#quickCsv { margin-left: auto; min-width: 9rem; }
+#battleAreaButton { width: 100%; margin: 0; overflow-wrap: anywhere; }
+#battleAreaPicker { width: min(25rem, calc(100% - 24px)); max-height: 85dvh; border: 1px solid #879d94; border-radius: 8px; background: var(--sheet-background); color: inherit; }
+#battleAreaPicker::backdrop { background: #0008; }
+#battleAreaOptions { max-height: 55dvh; overflow-y: auto; }
+#battleAreaOptions button { display: block; width: 100%; text-align: left; }
+.summary-current { margin-bottom: 1rem; }
+.summary-current > p { margin: .4em 0; }
+.summary-current .summary-result { display: inline-grid; vertical-align: middle; }
 .win-toggle { font-size: 1.15rem; border: 1px solid #879d94; background: #fff; }
 .win-toggle[aria-pressed="true"] { background: #235ac4; border-color: #235ac4; color: white; }
 @media (max-width: 400px) {
@@ -360,5 +378,14 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 [data-theme="dark"] #field-opponentRank[data-rank="PRIDE"] { background: #4B9778; }
 [data-theme="dark"] #field-course.previous-win { background: #e5efff; color: #123f9a; }
 [data-theme="dark"] #field-course.previous-loss { background: #ffe8e8; color: #a01515; }
+[data-theme="dark"] #newEntry { color: #ffada6; }
+.top-navigation .tabs button[data-tab], .top-navigation .subtabs button {
+  background: color-mix(in srgb, var(--card-color, #14634c) 25%, var(--sheet-background));
+  color: inherit; border-color: var(--card-color, #14634c);
+}
+.top-navigation .tabs button[data-tab][aria-pressed="true"], .top-navigation .subtabs button[aria-pressed="true"] {
+  background: var(--card-color, #14634c); color: var(--card-ink, white);
+}
+.top-navigation .subtabs button[aria-pressed="true"] { border-bottom-color: var(--sheet-background); }
 [data-theme="dark"] .star-options > span:hover, [data-theme="dark"] .star-options > span[aria-selected="true"], [data-theme="dark"] .star-options > span.active,
 [data-theme="dark"] .suggestions button:focus { background: #37594d; }

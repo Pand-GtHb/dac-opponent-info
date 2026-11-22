@@ -162,6 +162,9 @@
       !session.has(key) && draft.values[key] &&
       !(key === "opponentRank" && draft.values[key] === draft.values.myRank)));
   }
+  function withCourse(values, course) {
+    return values.course === course ? values : { ...values, course, choice: "", night: "", random: "" };
+  }
   function summarizeMatches(records, season, round) {
     const groups = new Map();
     for (const { values } of records) {
@@ -517,6 +520,9 @@
       "courseMatches", "courseWins") : null;
     return { total, course, reason: total ? "" : "Excel基準値が空欄または勝敗不明です", local: localStats };
   }
+  function missingExcelBaselines(records) {
+    return records.filter(record => !record.excelHistory || record.excelHistory.matches === null).length;
+  }
   function winRateColor(wins, matches) {
     if (!Number.isSafeInteger(wins) || !Number.isSafeInteger(matches) || matches <= 0 || wins < 0 || wins > matches) return null;
     const stops = [[0.4, [255, 255, 0]], [0.6, [51, 153, 255]], [0.9, [216, 131, 255]]];
@@ -562,6 +568,22 @@
     validateRecord(record);
     const result = [...records.filter(r => r.id !== record.id), record];
     temporaryNoIndex(result);
+    return result;
+  }
+  function editAppRecord(records, id, values, updatedAt) {
+    const index = records.findIndex(record => record.id === id);
+    if (index < 0) throw new Error("修正対象の記録が見つかりません。");
+    const original = records[index];
+    if (original.id.startsWith("excel-datano:")) throw new Error("Excel由来の正式記録は修正できません。");
+    const nextValues = { ...original.values, ...values };
+    if (nextValues.opponent !== original.values.opponent) {
+      nextValues.normalizedName = normalizeName(nextValues.opponent);
+    }
+    const edited = { ...original, values: nextValues, updatedAt };
+    validateRecord(edited);
+    normalizeCsvDate(edited.values.date, "対戦");
+    const result = records.slice();
+    result[index] = edited;
     return result;
   }
   function previousCourseMatch(records, values, aliases, excludeId) {
@@ -882,8 +904,8 @@
     if (/^\s*'(?=[=+\-@])/.test(value)) return value.replace(/^(\s*)'/, "$1");
     return value;
   }
-  const api = { fields, defaultSettings, prefectures, recordSearchMatches, recordHistoryPage, opponentNameFilter, searchHighlightParts, formatWinRate, opponentWinRates, excelHistoryStats, winRateColor, formatCourseChoiceRate, formatCourseResult, playerSuggestions, applyPlayerCandidate, applyUnknownPlayer, syncDefaultOpponentRank, teamSuggestions, newDraft, hasMatchDraft, summarizeMatches, summarizePivot, sortCardNames, startOpponentTime, captureOpponentTime, hasCurrentOpponentTime, matchDateTime, normalizeName, shopKey, parsePaste, applyPaste, applyPasteWithHistory, mergeTemporaryCounters, nextTemporaryNo,
-    validateSettings, validateDraft, validateRecord, validateBackup, withoutCardNumbers, findHistory, previousCourseMatch, previousOutcome, upsert, mergeHistory, replaceHistory, toCsv, toImportCsv, toExcelCsv, toCardSlotsCsv, mergeImportCsv };
+  const api = { fields, defaultSettings, prefectures, recordSearchMatches, recordHistoryPage, opponentNameFilter, searchHighlightParts, formatWinRate, opponentWinRates, excelHistoryStats, missingExcelBaselines, winRateColor, formatCourseChoiceRate, formatCourseResult, playerSuggestions, applyPlayerCandidate, applyUnknownPlayer, syncDefaultOpponentRank, teamSuggestions, newDraft, hasMatchDraft, withCourse, summarizeMatches, summarizePivot, sortCardNames, startOpponentTime, captureOpponentTime, hasCurrentOpponentTime, matchDateTime, normalizeName, shopKey, parsePaste, applyPaste, applyPasteWithHistory, mergeTemporaryCounters, nextTemporaryNo,
+    validateSettings, validateDraft, validateRecord, validateBackup, withoutCardNumbers, findHistory, previousCourseMatch, previousOutcome, upsert, editAppRecord, mergeHistory, replaceHistory, toCsv, toImportCsv, toExcelCsv, toCardSlotsCsv, mergeImportCsv };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RecordModel = api;
 })(globalThis);

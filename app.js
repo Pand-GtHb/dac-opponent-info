@@ -49,6 +49,7 @@
   const checkboxes = ["night", "random", "choice"];
   const lists = { card: "cards", season: "seasons", course: "courses", car: "cars", opponentCar: "cars", team: "teams", teamShop: "teamShops", round: "rounds" };
   const dropdowns = ["season", "round", "card", "myRank", "opponentRank", "myStars", "battleShop", "homeShop", "teamShop", "course", "car", "opponentCar", "behavior"];
+  const noTeam = "（チーム無所属）";
   const settingLabels = { seasons: "シーズン", rounds: "ラウンド", cards: "カード", courses: "コース", cars: "車種", teams: "チーム", teamShops: "チーム所属店舗" };
   function report(error) {
     console.error(error);
@@ -110,6 +111,13 @@
       !["opponent", "normalizedName"].includes(key) && before[key] &&
       !(key === "opponentRank" && before[key] === before.myRank) && before[key] !== after[key]);
     return !changed || confirm("反映すると入力中の対戦情報の一部が置き換わります。続行しますか？\n別の対戦を始める場合は、先に現在の対戦を保存してください。");
+  }
+  function changeDraftCourse(course) {
+    const previous = state.draft.values;
+    state.draft.values = M.withCourse(previous, course);
+    if (state.draft.values !== previous) {
+      for (const key of ["choice", "night", "random"]) $(`field-${key}`).checked = false;
+    }
   }
   async function flush() {
     await queue;
@@ -344,8 +352,10 @@
           manual.hidden = input.selectedOptions[0]?.dataset.manual !== "true";
           if (!manual.hidden) { manual.focus(); return; }
         }
-        state.draft.values[key] = checkbox ? (input.checked ? "1" : "0")
+        const value = checkbox ? (input.checked ? "1" : "0")
           : key === "opponentStars" ? C.normalizeStars(input.value) : input.value;
+        if (key === "course") changeDraftCourse(value);
+        else state.draft.values[key] = value;
         if (key === "opponent") {
           state.draft.values.normalizedName = M.normalizeName(input.value);
           state.draft = M.startOpponentTime(state.draft, state.draft.values, state.settings.shopAliases);
@@ -411,7 +421,8 @@
         manual.setAttribute("aria-label", title + "を直接入力");
         manual.addEventListener("input", () => {
           const previousRank = state.draft.values.myRank;
-          state.draft.values[key] = key === "myStars" ? C.normalizeStars(manual.value) : manual.value;
+          if (key === "course") changeDraftCourse(manual.value);
+          else state.draft.values[key] = key === "myStars" ? C.normalizeStars(manual.value) : manual.value;
           updateContext(key, previousRank);
           autosave();
           renderHistory();
@@ -621,8 +632,12 @@
     const candidates = isPlayer
       ? M.playerSuggestions(state.records, query, state.settings.shopAliases, state.draft.id)
       : C.teamSuggestions(state.records, query, state.draft.id);
+    if (!isPlayer && noTeam.normalize("NFKC").includes(query.trim().normalize("NFKC")) &&
+        !candidates.some(candidate => candidate.team === noTeam)) {
+      candidates.unshift({ team: noTeam, teamShop: "" });
+    }
     container.replaceChildren();
-    container.hidden = !query.trim();
+    container.hidden = isPlayer && !query.trim();
     if (container.hidden) return;
     if (!candidates.length) {
       container.textContent = "該当する過去候補はありません。そのまま入力できます。";
@@ -633,7 +648,7 @@
       button.type = "button";
       button.textContent = isPlayer
         ? `${candidate.opponent} / ${candidate.homeArea || "所属エリア不明"} / ${candidate.homeShop || "所属店不明"}`
-        : `${candidate.team} / ${candidate.teamShop || "所属店舗未入力"}`;
+        : candidate.team === noTeam ? noTeam : `${candidate.team} / ${candidate.teamShop || "所属店舗未入力"}`;
       button.onclick = () => {
         if (isPlayer) {
           const values = M.applyPlayerCandidate(state.draft.values, candidate);
@@ -642,7 +657,7 @@
           state.playerSearch = "";
         } else {
           state.draft.values.team = candidate.team;
-          state.draft.values.teamShop = candidate.teamShop;
+          state.draft.values.teamShop = candidate.team === noTeam ? "" : candidate.teamShop;
         }
         autosave();
         renderDraft();
@@ -715,7 +730,7 @@
   function updateContext(key, previousRank) {
     if (key === "team") {
       const pair = C.opponentTeams(state.records, state.draft.id).find(pair => pair.team === state.draft.values.team);
-      state.draft.values.teamShop = pair?.teamShop || "";
+      state.draft.values.teamShop = state.draft.values.team === noTeam ? "" : pair?.teamShop || "";
       renderDropdown("teamShop");
     }
     if (key === "card" && state.settings.catalog) {
@@ -753,7 +768,9 @@
     if (value && !options.some(option => option.value === value)) options.push(new Option(value, value));
     select.replaceChildren(...options);
     select.value = value;
-    document.querySelector("header").dataset.cardColor = cardColor(cardNames(), value) || "green";
+    const color = cardColor(cardNames(), value) || "green";
+    document.querySelector("header").dataset.cardColor = color;
+    document.querySelector(".top-navigation").dataset.cardColor = color;
     $("headerRank").textContent = state.draft.values.myRank || "未入力";
     displayStars($("headerStars"), state.draft.values.myStars || "未入力");
   }
@@ -954,6 +971,7 @@
         ...state.records.flatMap(record => [record.values.battleArea, record.values.homeArea]), value])].filter(Boolean);
       input.replaceChildren(new Option("未入力", ""), ...areas.map(area => new Option(area, area)));
       input.value = value;
+      if (key === "battleArea") $("battleAreaButton").textContent = value || "未入力";
     }
   }
   function renderDraft() {
@@ -997,6 +1015,83 @@
   function isAppRecord(record) {
     return !record.id.startsWith("excel-datano:");
   }
+  let editingRecordId = null;
+  const editorControls = new Map();
+  function editorValues() {
+    return Object.fromEntries([...editorControls].map(([key, control]) => {
+      const value = control.manual && control.input.selectedOptions[0]?.dataset.manual ? control.manual.value : control.input.value;
+      return [key, value];
+    }));
+  }
+  function openRecordEditor(record) {
+    if (busy || resetComplete || !isAppRecord(record)) return;
+    editingRecordId = record.id;
+    editorControls.clear();
+    $("recordEditorError").hidden = true;
+    $("recordEditorNumber").textContent = `仮No.：${record.temporaryNo || "なし"}（変更されません）`;
+    const container = $("recordEditorInputs");
+    container.replaceChildren();
+    const ordered = [...sessionFields, ...primary, "homeArea", "homeShop"];
+    for (const key of ordered) {
+      const field = M.fields.find(([name]) => name === key);
+      if (!field) throw new Error(`修正項目が不正です：${key}`);
+      const label = document.createElement("label");
+      const caption = document.createElement("span");
+      caption.textContent = (fieldTitles[key] || field[1]).replace("\n", "");
+      label.append(caption);
+      const value = record.values[key];
+      let choices = null;
+      if (key === "win") choices = [["", "未入力"], ["1", "勝ち"], ["0", "負け"]];
+      else if (checkboxes.includes(key)) choices = [["", "未入力"], ["1", "あり"], ["0", "なし"]];
+      else if (["battleArea", "homeArea"].includes(key)) {
+        choices = [...new Set([...M.prefectures, ...Object.keys(state.settings.shopsByArea || {}), value])]
+          .filter(Boolean).map(item => [item, item]);
+      } else if (["battleShop", "homeShop"].includes(key)) {
+        choices = [...new Set([...Object.values(state.settings.shopsByArea || {}).flat(), value])]
+          .filter(Boolean).map(item => [item, item]);
+      } else if (dropdowns.includes(key)) {
+        const defaults = ["myRank", "opponentRank"].includes(key)
+          ? ["不明", "緑◆", "青◆", "赤◆", "エメラルド", "サファイア", "ルビー", "PRIDE"]
+          : key === "myStars" ? Array.from({ length: 8 }, (_, index) => "★".repeat(index + 1))
+          : key === "behavior" ? state.records.map(item => item.values.behavior) : [];
+        const options = [...new Set([...(C.choices(state.settings, key, record.values) || []),
+          ...(state.settings[lists[key]] || []), ...defaults, value])].filter(Boolean);
+        choices = options.map(item => [item, C.label(state.settings, key, item)]);
+      }
+      let input, manual;
+      if (choices) {
+        input = document.createElement("select");
+        if (!["win", ...checkboxes].includes(key)) choices.unshift(["", "未入力"]);
+        if (!choices.some(([optionValue]) => optionValue === value)) choices.push([value, value]);
+        for (const [optionValue, text] of choices) input.add(new Option(text, optionValue));
+        if (!["win", ...checkboxes].includes(key)) {
+          const option = new Option("直接入力…", "");
+          option.dataset.manual = "true";
+          input.add(option);
+          manual = document.createElement("input");
+          manual.type = "text";
+          manual.hidden = true;
+          manual.setAttribute("aria-label", `${caption.textContent}を直接入力`);
+          input.addEventListener("change", () => {
+            manual.hidden = !input.selectedOptions[0]?.dataset.manual;
+            if (!manual.hidden) { manual.value = value; manual.focus(); }
+          });
+        }
+        input.value = value;
+      } else {
+        input = document.createElement(["note", "nameNote"].includes(key) ? "textarea" : "input");
+        if (key === "date") { input.type = "date"; input.required = true; }
+        if (key === "opponent") input.required = true;
+        input.value = value;
+      }
+      input.setAttribute("aria-label", caption.textContent);
+      label.append(input);
+      if (manual) label.append(manual);
+      editorControls.set(key, { input, manual });
+      container.append(label);
+    }
+    $("recordEditor").showModal();
+  }
   function recordsTable(records, mode, matches = new Map(), winRates = new Map(), filters = {}) {
     const opponentHistory = mode === "opponent";
     const showAffiliation = opponentHistory;
@@ -1005,6 +1100,7 @@
         [r.values.season, r.values.round].filter(Boolean).join(" / "),
         !showAffiliation && r.temporaryNo ? `仮No. ${r.temporaryNo}` : ""].filter(Boolean).join("\n")],
       ...(showAffiliation ? [
+        ["修正"],
         ["登録No.", r => isAppRecord(r) ? r.temporaryNo : r.id.slice("excel-datano:".length)]
       ] : []),
       ["自カード", r => r.values.card],
@@ -1061,7 +1157,16 @@
       }
       for (const [label, value] of columns) {
         const cell = row.insertCell();
-        if (label === "相手" && showAffiliation) {
+        if (label === "修正") {
+          if (isAppRecord(record)) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = "修正";
+            button.setAttribute("aria-label", `${record.values.date} ${record.values.opponent}の記録を修正`);
+            button.onclick = () => openRecordEditor(record);
+            cell.append(button);
+          } else cell.textContent = "—";
+        } else if (label === "相手" && showAffiliation) {
           const name = record.values.opponent;
           if (opponentHistory && name) {
             const copy = document.createElement("button");
@@ -1178,13 +1283,7 @@
     const seasons = M.summarizePivot(state.records, cards);
     const number = value => value.toLocaleString("ja-JP");
     const rate = stats => stats.total ? `${(stats.wins / stats.total * 100).toFixed(1)}%` : "—";
-    function expandable(parent, key, label, stats, initiallyOpen) {
-      const details = document.createElement("details");
-      details.className = "summary-group";
-      rememberDetails(details, `summary:${key}`, initiallyOpen);
-      const summary = document.createElement("summary");
-      const name = document.createElement("span");
-      name.textContent = label || "未入力";
+    function resultNode(stats) {
       const result = document.createElement("span");
       result.className = "summary-result";
       for (const text of [`${number(stats.wins)}勝`, " / ", `${number(stats.total)}戦`, `（${rate(stats)}）`]) {
@@ -1198,7 +1297,16 @@
         unknown.textContent = `（勝敗未入力 ${number(stats.unknown)}）`;
         result.append(unknown);
       }
-      summary.append(name, result);
+      return result;
+    }
+    function expandable(parent, key, label, stats, initiallyOpen) {
+      const details = document.createElement("details");
+      details.className = "summary-group";
+      rememberDetails(details, `summary:${key}`, initiallyOpen);
+      const summary = document.createElement("summary");
+      const name = document.createElement("span");
+      name.textContent = label || "未入力";
+      summary.append(name, resultNode(stats));
       details.append(summary);
       parent.append(details);
       return details;
@@ -1221,8 +1329,30 @@
       const container = $(id);
       container.style.setProperty("--summary-count-width", `calc(${number(state.records.length).length}ch + 1em)`);
       container.replaceChildren();
+      const current = document.createElement("div");
+      current.className = "summary-current";
+      const values = state.draft.values;
+      const title = document.createElement("strong");
+      title.textContent = kind === "card" ? "選択中のラウンド" : "選択中の日付";
+      const context = document.createElement("p");
+      context.textContent = [values.season || "シーズン未入力", values.round || "ラウンド未入力",
+        ...(kind === "day" ? [values.date || "日付未入力"] : [])].join(" / ");
+      current.append(title, context);
+      if (values.season && values.round && (kind === "card" || values.date)) {
+        const season = seasons.find(item => item.name === values.season);
+        const round = season?.rounds.find(item => item.name === values.round);
+        const stats = kind === "card" ? round : round?.days.find(item => item.name === values.date);
+        const total = document.createElement("p");
+        total.append("合計 ", resultNode(stats || { wins: 0, total: 0, unknown: 0 }));
+        current.append(total);
+        if (stats?.cards.length) cardTable(current, stats.cards);
+        else current.append(document.createTextNode("該当する保存済み記録はありません。"));
+      } else {
+        current.append(document.createTextNode("ラウンド情報を入力してください。"));
+      }
+      container.append(current);
       if (!seasons.length) {
-        container.textContent = "集計できる保存済み記録はありません。";
+        container.append(document.createTextNode("集計できる保存済み記録はありません。"));
         continue;
       }
       for (const season of seasons) {
@@ -1307,7 +1437,7 @@
     $("themeToggle").title = dark ? "明色に切替" : "暗色に切替";
     $("themeToggle").setAttribute("aria-pressed", String(dark));
   }
-  async function run(action) {
+  async function run(action, errorTarget = null) {
     if (busy || resetComplete) return;
     busy = true;
     $("headerCard").disabled = true;
@@ -1319,7 +1449,14 @@
       if (!failure) $("error").hidden = true;
       await flush();
       await action();
-    } catch (error) { report(error); }
+    } catch (error) {
+      report(error);
+      if (errorTarget) {
+        errorTarget.textContent = `${error.message || String(error)} 修正内容は保存されていません。` +
+          (failure ? "この修正画面の内容は救出用JSONに含まれません。画面を閉じる前に内容を控えてください。" : "");
+        errorTarget.hidden = false;
+      }
+    }
     finally {
       busy = false;
       if (!resetComplete) {
@@ -1392,6 +1529,7 @@
     $("headerRank").textContent = "未入力";
     $("headerStars").textContent = "未入力";
     document.querySelector("header").dataset.cardColor = "green";
+    document.querySelector(".top-navigation").dataset.cardColor = "green";
     $("themeToggle").disabled = true;
     db.close();
     resultObservers.forEach(observer => observer.disconnect());
@@ -1413,6 +1551,39 @@
     $("error").hidden = true;
   }
   buildFields();
+  const battleAreaInput = $("field-battleArea");
+  const battleAreaButton = document.createElement("button");
+  battleAreaButton.type = "button";
+  battleAreaButton.id = "battleAreaButton";
+  battleAreaButton.setAttribute("aria-label", "対戦店舗エリア");
+  battleAreaButton.setAttribute("aria-haspopup", "dialog");
+  battleAreaInput.hidden = true;
+  battleAreaInput.after(battleAreaButton);
+  battleAreaButton.onclick = () => {
+    const options = $("battleAreaOptions");
+    options.replaceChildren();
+    let target;
+    for (const option of battleAreaInput.options) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = option.textContent;
+      button.setAttribute("aria-pressed", String(option.value === battleAreaInput.value));
+      button.onclick = () => {
+        $("battleAreaPicker").close();
+        if (option.value === battleAreaInput.value) return;
+        battleAreaInput.value = option.value;
+        battleAreaInput.dispatchEvent(new Event("input", { bubbles: true }));
+        battleAreaButton.textContent = option.value || "未入力";
+        battleAreaButton.focus();
+      };
+      if (option.value === (battleAreaInput.value || "愛知県")) target = button;
+      options.append(button);
+    }
+    $("battleAreaPicker").showModal();
+    $("battleAreaPickerTitle").focus();
+    if (target) options.scrollTop = target.offsetTop - options.offsetTop - (options.clientHeight - target.offsetHeight) / 2;
+  };
+  $("battleAreaCancel").onclick = () => $("battleAreaPicker").close();
   for (const label of document.querySelectorAll("label")) {
     if (label.classList.contains("plain-label")) continue;
     const caption = document.createElement("span");
@@ -1643,6 +1814,46 @@
     $("saveEntry").textContent = "この対戦を保存";
   });
   $("savedRecords").ontoggle = renderSavedRecords;
+  function cancelRecordEditor() {
+    if (busy) return;
+    const original = state.records.find(record => record.id === editingRecordId);
+    const values = editorValues();
+    if (original && Object.entries(values).some(([key, value]) => value !== original.values[key]) &&
+        !confirm("修正途中の内容を破棄しますか？")) return;
+    $("recordEditor").close();
+    editingRecordId = null;
+  }
+  $("recordEditorCancel").onclick = cancelRecordEditor;
+  $("recordEditor").addEventListener("cancel", event => {
+    event.preventDefault();
+    cancelRecordEditor();
+  });
+  $("recordEditorForm").onsubmit = event => {
+    event.preventDefault();
+    void run(async () => {
+      $("recordEditorFields").disabled = true;
+      $("recordEditorError").hidden = true;
+      try {
+        const next = structuredClone(state);
+        const values = editorValues();
+        const original = next.records.find(record => record.id === editingRecordId);
+        if (!original) throw new Error("修正対象の記録が見つかりません。");
+        for (const key of ["myStars", "opponentStars"]) {
+          if (values[key] !== original.values[key]) values[key] = C.normalizeStars(values[key]);
+        }
+        next.records = M.editAppRecord(next.records, editingRecordId, values, new Date().toISOString());
+        await persist(next);
+        state = next;
+        $("recordEditor").close();
+        editingRecordId = null;
+        renderRecords();
+        renderHistory();
+        renderSummary();
+      } finally {
+        $("recordEditorFields").disabled = false;
+      }
+    }, $("recordEditorError"));
+  };
   $("historyPrevious").onclick = event => changeHistoryPage(-1, event.currentTarget);
   $("historyNext").onclick = event => changeHistoryPage(1, event.currentTarget);
   for (const [filter, title] of [
@@ -1861,6 +2072,7 @@
         throw new Error("初回は対戦履歴以外の設定マスターをすべて取り込んでください。");
       }
       const historyResult = history ? M.replaceHistory(state.records, history) : null;
+      const missingBaselines = history ? M.missingExcelBaselines(history.records) : 0;
       const importedSettings = Object.keys(masters).length ? C.mergeMasters(state.settings, masters) : state.settings;
       M.validateSettings(importedSettings);
       const diffs = C.masterCardDiffs(state.settings, masters);
@@ -1870,6 +2082,7 @@
       $("masterInfo").textContent = `${selectedMasterTypes().map(type => masterTitles[type]).join("、")}：内容を確認してください。` +
         " 選択した種類はJSONの内容で置き換えます。JSONにない旧定義は削除します。" +
         (historyResult ? ` ${historyReplacementText(historyResult)}` : "") +
+        (missingBaselines ? ` 注意：04マスターの${missingBaselines.toLocaleString("ja-JP")}件にExcel基準の相手戦績がありません。該当する相手は勝率による着色ができない場合があります。` : "") +
         " 入力途中の下書きは保持します。";
       $("masterPreview").hidden = false;
       if (!$("settings").hidden) {
