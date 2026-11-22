@@ -228,6 +228,13 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 .master-choices small { margin-left: auto; font-weight: 400; }
 .master-file-controls { display: flex; flex-wrap: wrap; gap: 4px; }
 .master-file-controls button { min-height: 28px; padding: 3px 8px; font-size: .75rem; overflow-wrap: anywhere; max-width: 100%; }
+.master-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.master-actions form { display: contents; }
+.help-button { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 30px; min-height: 30px; padding: 0; margin: 0 2px; border-radius: 50%; font-size: .85rem; }
+#helpDialog { width: min(36rem, calc(100% - 24px)); max-height: 85dvh; overflow-y: auto;
+  border: 1px solid #879d94; border-radius: 8px; background: var(--sheet-background); color: inherit; }
+#helpDialog::backdrop { background: #0008; }
 #error { background: #fff1ef; color: #9c2013; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 #status { display: block; margin-top: 8px; }
 summary { padding: 7px 0; cursor: pointer; }
@@ -276,7 +283,19 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 #historyPages button { min-width: 64px; margin: 0; }
 #historyPageNumber { text-align: center; font-variant-numeric: tabular-nums; }
 .course-block { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 8px; align-items: start; border-radius: 8px; }
-#primaryFields { border-radius: 8px; }
+#primaryFields { border-radius: 8px; grid-template-columns: minmax(0, 1fr); }
+.battle-row { display: grid; grid-template-columns: minmax(0, min(55%, 13.5rem)) minmax(0, 1fr); gap: 0 8px; }
+.battle-row-team { grid-template-columns: minmax(0, min(60%, 20.5rem)) minmax(0, 1fr); }
+.battle-row > div { min-width: 0; }
+.battle-row > div > label, .battle-row > div > .player-search-row {
+  grid-template-columns: minmax(0, 4.25rem) minmax(0, 1fr); gap: 3px;
+}
+.battle-row .secondary-battle-field > label { grid-template-columns: minmax(0, 1fr); }
+.battle-row .secondary-battle-field .field-caption { position: absolute; width: 1px; height: 1px; margin: -1px;
+  padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.battle-row [data-field="nameNote"] > label { grid-template-columns: auto minmax(0, 1fr); }
+.battle-row .field-caption { white-space: nowrap; }
+.battle-row .two-line-caption .field-caption { white-space: pre-line; }
 #primaryFields > div:not(.full-width) > label,
 #primaryFields > div:not(.full-width) > .player-search-row,
 #primaryFields > div.full-width > label,
@@ -295,9 +314,11 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 #courseChoice .checkbox-field { gap: 3px; margin: 0; min-height: 36px; }
 #courseChoice .field-caption { font-size: .8rem; }
 #courseChoice input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; }
-@media (min-width: 760px) {
-  .course-block { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
+.checkbox-row.course-conditions { flex-wrap: nowrap; gap: 2px; }
+.course-conditions .checkbox-field { flex-direction: row-reverse; gap: 2px; }
+.course-conditions .checkbox-field input[type="checkbox"] { width: 16px; height: 16px; min-height: 16px; }
+.course-conditions .field-caption, #courseChoice .field-caption { font-size: .7rem; white-space: nowrap; }
+.course-block { grid-template-columns: minmax(0, min(55%, 13.5rem)) minmax(0, 1fr); }
 @media (max-width: 360px) {
   .course-field { grid-template-columns: minmax(0, 4.5rem) minmax(0, 1fr); }
 }
@@ -333,8 +354,17 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 .win-toggle { font-size: 1.15rem; border: 1px solid #879d94; background: #fff; }
 .win-toggle[aria-pressed="true"] { background: #235ac4; border-color: #235ac4; color: white; }
 @media (max-width: 400px) {
-  .course-conditions { gap: 0 6px; }
-  .course-conditions .checkbox-field { gap: 3px; }
+  .course-block { grid-template-columns: minmax(0, 53%) minmax(0, 1fr); }
+  .checkbox-row.course-conditions { gap: 0 2px; }
+  .course-conditions .checkbox-field { gap: 2px; }
+  .battle-row .field-caption { font-size: .75rem; }
+  .battle-row input, .battle-row select, .battle-row textarea { font-size: .85rem; padding-inline: 3px; }
+}
+@media (max-width: 370px) {
+  .course-block { grid-template-columns: minmax(0, 45%) minmax(0, 1fr); gap: 0 4px; }
+  .course-field { grid-template-columns: minmax(0, 3rem) minmax(0, 1fr); }
+  .course-conditions .field-caption, #courseChoice .field-caption { font-size: .625rem; }
+  .course-conditions .checkbox-field input[type="checkbox"] { width: 14px; height: 14px; min-height: 14px; }
 }
 .table-scroll { max-height: 28rem; overflow: auto; }
 :focus-visible { outline: 3px solid #e08b00; outline-offset: 2px; }

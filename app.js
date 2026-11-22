@@ -510,7 +510,7 @@
             else showChoices(false);
           } else if (event.key === "Escape") showChoices(false);
         });
-        input.placeholder = "★を選択、またはPRIDEの数値を直接入力";
+        input.placeholder = "★ / PRIDE";
         input.replaceWith(combo);
         combo.append(input, choices);
       }
@@ -1092,7 +1092,7 @@
     }
     $("recordEditor").showModal();
   }
-  function recordsTable(records, mode, matches = new Map(), winRates = new Map(), filters = {}) {
+  function recordsTable(records, mode, matches = new Map(), filters = {}) {
     const opponentHistory = mode === "opponent";
     const showAffiliation = opponentHistory;
     const columns = [
@@ -1139,13 +1139,21 @@
       row.classList.toggle("record-win", record.values.win === "1");
       row.classList.toggle("record-provisional", showAffiliation && isAppRecord(record));
       const outcome = record.values.win === "1" ? "勝ち" : record.values.win === "0" ? "負け" : "未入力";
-      row.title = (showAffiliation
+      const rowDetails = (showAffiliation
         ? `相手ランク：${record.values.opponentRank || "未入力"}\n★・PRIDE：${C.formatStars(record.values.opponentStars) || "未入力"}` +
-          `\n勝率：${winRates.get(record) || "照合不可（名前・所属店舗が必要）"}\n`
+          "\n"
         : "") +
         `自車：${record.values.car || "未入力"}\n相手車：${record.values.opponentCar || "未入力"}` +
         (showAffiliation ? `\nCNメモ：${record.values.nameNote || "未入力"}\n追加メモ：${record.values.note || "未入力"}` : "") +
         (opponentHistory ? `\n勝敗：${outcome}` : "");
+      row.title = rowDetails;
+      if (showAffiliation) row.addEventListener("mouseenter", () => {
+        const stats = M.excelHistoryStats(state.records, { ...record.values, course: "" }, state.settings.shopAliases);
+        const rate = stats.total
+          ? `${stats.total.wins}勝 / ${stats.total.matches}戦（${Math.round(stats.total.wins / stats.total.matches * 100)}%）`
+          : stats.reason;
+        row.title = `Excel基準：${rate}\n${rowDetails}`;
+      }, { once: true });
       const found = matches.get(record) || {};
       function appendPair(cell, firstKey, secondKey) {
         const first = record.values[firstKey];
@@ -1238,17 +1246,13 @@
     for (const id of ["field-behavior", "manual-behavior"]) $(id).classList.toggle("brake-flash", brakeFlash);
     const excel = M.excelHistoryStats(state.records, state.draft.values, state.settings.shopAliases, state.draft.id, records);
     const format = stats => `${stats.wins}勝 / ${stats.matches}戦（${Math.round(stats.wins / stats.matches * 100)}%）`;
-    const local = excel.local.matches
-      ? ` / アプリ未反映 ${excel.local.wins}勝 / ${excel.local.matches}戦` +
-        `（${excel.local.unknown ? `勝敗未入力${excel.local.unknown}件・` : ""}Excelとの重複は未確認）` : "";
-    $("excelOpponentResult").textContent = excel.total
-      ? `Excel基準：全体 ${format(excel.total)} / コース ${excel.course ? format(excel.course) : "基準なし"}${local}`
-      : `Excel基準：${excel.reason}（相手名は着色されません）${local}`;
+    $("opponentResult").textContent = (excel.total
+      ? `Excel基準：全体 ${format(excel.total)} / コース ${excel.course ? format(excel.course) : "基準なし"}`
+      : `Excel基準：${excel.reason}（相手名は着色されません）`) +
+      (previous ? ` / 端末内の前回対戦日 ${previous.values.date}` : "");
     const color = excel.total && M.winRateColor(excel.total.wins, excel.total.matches);
     $("field-opponent").style.backgroundColor = color?.background || "";
     $("field-opponent").style.color = color?.foreground || "";
-    $("opponentResult").textContent = previous
-      ? `端末内勝率${M.formatWinRate(records)} / 前回対戦日${previous.values.date}` : "過去記録なし";
     const courseMatch = M.previousCourseMatch(state.records, state.draft.values, state.settings.shopAliases, state.draft.id);
     const result = M.previousOutcome(courseMatch);
     $("field-course").classList.toggle("previous-win", result === "1");
@@ -1257,8 +1261,9 @@
     fitResult("courseResult");
     $("history").replaceChildren();
     const summary = document.createElement("p");
-    summary.textContent = `保存済み ${records.length}戦` +
-      (records.length ? `・勝率 ${M.formatWinRate(records)}` : "");
+    summary.textContent = excel.total
+      ? `Excel基準：全体 ${format(excel.total)} / コース ${excel.course ? format(excel.course) : "基準なし"}`
+      : `Excel基準：${excel.reason}`;
     $("history").append(summary, recordsTable(records.slice(0, 10), "current"));
   }
   function updateColumnFilter(select, records, key) {
@@ -1399,12 +1404,11 @@
     $("historyPrevious").disabled = historyPage === 0;
     $("historyNext").disabled = historyPage === result.lastPage;
     $("historyPageNumber").textContent = `${count(historyPage + 1)} / ${count(result.lastPage + 1)}ページ`;
-    const rates = M.opponentWinRates(state.records, state.settings.shopAliases, result.rows);
     const container = $("recordList");
     const left = container.firstElementChild?.scrollLeft || 0;
     const filters = { 日付: historyDateFilter, 相手: historyOpponentFilter, 自カード: historyCardFilter };
     const focused = Object.values(filters).find(filter => filter === document.activeElement);
-    const wrapper = recordsTable(result.rows, "opponent", result.matches, rates, filters);
+    const wrapper = recordsTable(result.rows, "opponent", result.matches, filters);
     container.replaceChildren(wrapper);
     wrapper.scrollLeft = left;
     if (focused) focused.focus({ preventScroll: true });
@@ -1602,9 +1606,41 @@
   courseField.className = "course-field";
   const courseHeading = document.createElement("div");
   courseHeading.className = "course-heading";
-  courseHeading.append(courseLabel.querySelector(".field-caption"), $("courseChoice"));
+  courseHeading.append(courseLabel.querySelector(".field-caption"));
   courseField.append(courseHeading, courseLabel.querySelector(".field-controls"));
   courseLabel.replaceWith(courseField);
+  $("courseBlock").querySelector(".course-conditions").prepend($("courseChoice"));
+  const battleField = key => $(`field-${key}`).closest("[data-field]");
+  const battleRow = (name, ...children) => {
+    const row = document.createElement("div");
+    row.className = `battle-row battle-row-${name}`;
+    row.append(...children);
+    return row;
+  };
+  battleField("note").classList.remove("full-width");
+  $("primaryFields").replaceChildren(
+    battleRow("opponent", battleField("opponent"), battleField("nameNote")),
+    $("opponentResult"), $("affiliationFields"),
+    battleRow("rank", battleField("opponentRank"), battleField("opponentStars")),
+    battleRow("team", battleField("team"), battleField("teamShop")),
+    $("courseBlock"), battleField("car"), battleField("opponentCar"),
+    battleRow("shop", battleField("battleArea"), battleField("battleShop")),
+    battleRow("behavior", battleField("behavior"), battleField("note")),
+    battleField("win")
+  );
+  for (const [key, accessibleName] of [["teamShop", "チーム所属店舗"], ["battleShop", "対戦店舗"]]) {
+    battleField(key).classList.add("secondary-battle-field");
+    $(`field-${key}`).setAttribute("aria-label", accessibleName);
+  }
+  battleField("battleArea").querySelector(".field-caption").textContent = "対戦店舗";
+  for (const button of document.querySelectorAll("[data-help]")) {
+    button.addEventListener("click", () => {
+      $("helpTitle").textContent = button.getAttribute("aria-label");
+      $("helpContent").replaceChildren($(button.dataset.help).content.cloneNode(true));
+      $("helpDialog").showModal();
+    });
+  }
+  $("closeHelp").onclick = () => $("helpDialog").close();
   for (const id of ["courseResult", "cardTeamDetails"]) {
     let width = 0;
     const observer = new ResizeObserver(([entry]) => {
@@ -1926,7 +1962,10 @@
   };
   function clearMasterPreview(message = "") {
     masterPreview = null;
-    $("masterPreview").hidden = true;
+    $("applyMasters").disabled = true;
+    $("cancelMasters").disabled = true;
+    $("masterDiffPanel").hidden = true;
+    $("masterDiffPanel").open = false;
     $("masterDiffs").replaceChildren();
     $("masterInfo").textContent = message;
   }
@@ -1973,6 +2012,17 @@
   function selectedMasterTypes() {
     return [...$("masterChoices").querySelectorAll("input:checked")].map(input => input.value);
   }
+  function masterFileCounts(data) {
+    const fields = {
+      STORE_Master: [["stores", "店舗"]], TEAM_Master: [["teams", "チーム"]],
+      CARD_Master: [["cards", "カード"]], ROUND_Master: [["seasons", "シーズン"], ["rounds", "ラウンド"], ["courses", "コース"]],
+      CAR_Master: [["vehicles", "車種"]], RANK_Master: [["rankLabels", "ランク"], ["starLabels", "星"], ["rankLevels", "比較値"]],
+      AREA_Master: [["areas", "エリア"]], CORD_Master: [["behaviorCodes", "コード"]]
+    };
+    if (data.masterType === "OPPONENT_Master") return `${data.records.length.toLocaleString("ja-JP")}件`;
+    return fields[data.masterType].map(([key, title]) =>
+      `${title}${data.data[key].length.toLocaleString("ja-JP")}件`).join("・");
+  }
   function renderMasterSelection() {
     const selected = selectedMasterTypes();
     const issues = [];
@@ -1981,7 +2031,9 @@
       const count = files.length;
       const status = input.parentElement.querySelector("small");
       status.textContent = count > 1 ? (input.checked ? "重複あり" : "重複あり（対象外）")
-        : count === 1 ? (input.checked ? "選択済" : "選択済（対象外）")
+        : count === 1 ? `${masterFileCounts(files[0].data)}${input.checked ? "" : "（対象外）"}` +
+          (input.checked && input.value === "OPPONENT_Master" && masterPreview?.historyResult
+            ? `（追加${masterPreview.historyResult.added}・修正${masterPreview.historyResult.updated}・削除${masterPreview.historyResult.removed}・正式化${masterPreview.historyResult.finalized}）` : "")
           : input.checked ? "ファイル不足" : "対象外";
       status.title = files.map(file => file.name).join("\n");
       const controls = input.closest(".master-choice").querySelector(".master-file-controls");
@@ -2079,21 +2131,20 @@
       masterPreview = { masters, settings: JSON.stringify(state.settings),
         records: JSON.stringify(state.records), importedSettings, historyResult };
       showMasterDiffs(diffs);
-      $("masterInfo").textContent = `${selectedMasterTypes().map(type => masterTitles[type]).join("、")}：内容を確認してください。` +
-        " 選択した種類はJSONの内容で置き換えます。JSONにない旧定義は削除します。" +
-        (historyResult ? ` ${historyReplacementText(historyResult)}` : "") +
-        (missingBaselines ? ` 注意：04マスターの${missingBaselines.toLocaleString("ja-JP")}件にExcel基準の相手戦績がありません。該当する相手は勝率による着色ができない場合があります。` : "") +
-        " 入力途中の下書きは保持します。";
-      $("masterPreview").hidden = false;
-      if (!$("settings").hidden) {
-        const heading = $("masterPreviewHeading");
-        heading.focus({ preventScroll: true });
-        $("masterInfo").scrollIntoView({ block: "center" });
-      }
+      $("masterInfo").textContent = missingBaselines
+        ? `注意：04マスターの${missingBaselines.toLocaleString("ja-JP")}件にExcel基準の相手戦績がありません。該当する相手は勝率による着色ができない場合があります。`
+        : "内容確認が完了しました。";
+      $("masterDiffPanel").hidden = diffs.length === 0;
+      $("applyMasters").disabled = false;
+      $("cancelMasters").disabled = false;
+      renderMasterSelection();
     });
   };
   renderMasterSelection();
-  $("cancelMasters").onclick = () => clearMasterPreview("取り込みを中止しました。");
+  $("cancelMasters").onclick = () => {
+    clearMasterPreview("取り込みを中止しました。");
+    renderMasterSelection();
+  };
   $("masterPreview").onsubmit = event => {
     event.preventDefault();
     void runMaster(async () => {
@@ -2117,10 +2168,7 @@
       renderDraft();
       renderRecords();
       renderSettings();
-      const message = "選択したマスターをJSONの内容で置き換えました。" +
-        (masterPreview.historyResult ? ` ${historyReplacementText(masterPreview.historyResult)}` : " 対戦記録は変更していません。") +
-        " 入力途中の下書きは保持しました。";
-      clearMasterPreview(message);
+      clearMasterPreview("マスターを反映しました。");
       renderMasterSelection();
     });
   };
