@@ -1600,6 +1600,11 @@
     }
     label.append(caption, controls);
   }
+  for (const key of checkboxes) {
+    const input = $(`field-${key}`);
+    const label = input.closest("label");
+    label.replaceChildren(input, label.querySelector(".field-caption"));
+  }
   const courseLabel = $("field-course").closest("label");
   $("field-course").setAttribute("aria-label", "コース");
   const courseField = document.createElement("div");

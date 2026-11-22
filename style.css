@@ -311,16 +311,24 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 .course-field { display: grid; grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr); gap: 8px; margin: 6px 0; }
 .course-heading { min-width: 0; }
 .course-heading > .field-caption { display: block; font-weight: 600; }
-#courseChoice .checkbox-field { gap: 3px; margin: 0; min-height: 36px; }
-#courseChoice .field-caption { font-size: .8rem; }
-#courseChoice input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; }
-.checkbox-row.course-conditions { flex-wrap: nowrap; gap: 2px; }
-.course-conditions .checkbox-field { flex-direction: row-reverse; gap: 2px; }
-.course-conditions .checkbox-field input[type="checkbox"] { width: 16px; height: 16px; min-height: 16px; }
-.course-conditions .field-caption, #courseChoice .field-caption { font-size: .7rem; white-space: nowrap; }
+.checkbox-row.course-conditions { display: flex; flex-wrap: nowrap; gap: 6px; }
+.course-conditions .checkbox-field { display: block; position: relative; margin: 4px 0; }
+.course-conditions .checkbox-field input[type="checkbox"] {
+  position: absolute; z-index: 1; left: 7px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; min-height: 16px; margin: 0; accent-color: #14634c;
+}
+#primaryFields .course-conditions .field-caption {
+  display: flex; align-items: center; justify-content: center; min-height: 44px;
+  padding: 4px 6px 4px 26px; border: 1px solid #879d94; border-radius: 8px;
+  background: white; color: #174e3d; font-size: .8rem; white-space: nowrap;
+}
+#primaryFields .course-conditions input:checked + .field-caption { background: #14634c; color: white; border-color: #14634c; }
+.course-conditions .checkbox-field input[type="checkbox"]:checked { accent-color: white; }
+.course-conditions input:focus-visible + .field-caption { outline: 3px solid #e08b00; outline-offset: 2px; }
 .course-block { grid-template-columns: minmax(0, min(55%, 13.5rem)) minmax(0, 1fr); }
-@media (max-width: 360px) {
-  .course-field { grid-template-columns: minmax(0, 4.5rem) minmax(0, 1fr); }
+@media (max-width: 520px) {
+  .course-block { grid-template-columns: minmax(0, 1fr); }
+  .course-conditions > div { flex: 1; min-width: 0; }
 }
 .course-block > [data-field="course"] { min-width: 0; }
 #opponentResult { grid-column: 1 / -1; margin: 0 0 0 calc(4.25rem + 3px); font-size: .8rem; overflow-wrap: anywhere; }
@@ -354,17 +362,8 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 .win-toggle { font-size: 1.15rem; border: 1px solid #879d94; background: #fff; }
 .win-toggle[aria-pressed="true"] { background: #235ac4; border-color: #235ac4; color: white; }
 @media (max-width: 400px) {
-  .course-block { grid-template-columns: minmax(0, 53%) minmax(0, 1fr); }
-  .checkbox-row.course-conditions { gap: 0 2px; }
-  .course-conditions .checkbox-field { gap: 2px; }
   .battle-row .field-caption { font-size: .75rem; }
   .battle-row input, .battle-row select, .battle-row textarea { font-size: .85rem; padding-inline: 3px; }
-}
-@media (max-width: 370px) {
-  .course-block { grid-template-columns: minmax(0, 45%) minmax(0, 1fr); gap: 0 4px; }
-  .course-field { grid-template-columns: minmax(0, 3rem) minmax(0, 1fr); }
-  .course-conditions .field-caption, #courseChoice .field-caption { font-size: .625rem; }
-  .course-conditions .checkbox-field input[type="checkbox"] { width: 14px; height: 14px; min-height: 14px; }
 }
 .table-scroll { max-height: 28rem; overflow: auto; }
 :focus-visible { outline: 3px solid #e08b00; outline-offset: 2px; }
@@ -403,6 +402,9 @@ details > details { padding-left: .5rem; border-left: 2px solid #d5e2dc; }
 [data-theme="dark"] .save-entry.unsaved { background: #a71919; color: white; }
 [data-theme="dark"] .save-reminder, [data-theme="dark"] .danger { color: #ffada6; }
 [data-theme="dark"] .win-toggle[aria-pressed="true"] { background: #235ac4; color: white; }
+[data-theme="dark"] #primaryFields .course-conditions .field-caption { background: #20332d; color: #f2faf6; border-color: #9ab4a8; }
+[data-theme="dark"] #primaryFields .course-conditions input:checked + .field-caption { background: #f2faf6; color: #20332d; border-color: #f2faf6; }
+[data-theme="dark"] .course-conditions .checkbox-field input[type="checkbox"]:checked { accent-color: #14634c; }
 [data-theme="dark"] #field-opponentRank[data-rank="サファイア"] { background: #4A7DD5; }
 [data-theme="dark"] #field-opponentRank[data-rank="ルビー"] { background: #e73562; }
 [data-theme="dark"] #field-opponentRank[data-rank="PRIDE"] { background: #4B9778; }
