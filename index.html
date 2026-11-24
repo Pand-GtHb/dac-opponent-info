@@ -7,12 +7,12 @@
   <title>DAC 対戦記録 PoC</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=138">
+  <link rel="stylesheet" href="./style.css?v=139">
   <script defer src="./catalog.js?v=132"></script>
   <script defer src="./model.js?v=136"></script>
   <script defer src="./storage.js?v=117"></script>
-  <script defer src="./maintenance.js?v=138"></script>
-  <script defer src="./app.js?v=138"></script>
+  <script defer src="./maintenance.js?v=139"></script>
+  <script defer src="./app.js?v=139"></script>
 </head>
 <body>
 <header><div class="header-row"><h1>DAC 対戦記録 <small>PoC <span id="appVersion"></span></small></h1>
@@ -26,6 +26,7 @@
 <main>
   <div class="top-navigation">
   <nav class="tabs" aria-label="画面切り替え">
+    <button type="button" data-tab="viewer" aria-pressed="false">Viewer</button>
     <button type="button" data-tab="entry" aria-pressed="true">入力</button>
     <button type="button" data-tab="summary" aria-pressed="false">実績</button>
     <button type="button" data-tab="settings" aria-pressed="false">設定・バックアップ</button>
@@ -264,6 +265,14 @@
       </section>
     </div>
     </section>
+  </section>
+  <section id="viewer" hidden>
+    <p class="viewer-help">Viewerが表示されない場合は接続を確認し、再読み込みするか別画面で開いてください。オフラインでも記録画面は利用できます。</p>
+    <div class="viewer-actions">
+      <button type="button" id="reloadViewer">Viewerを再読み込み</button>
+      <a href="https://pand-gthb.github.io/initialdac-round-data-auto-json-00/" target="_blank" rel="noopener noreferrer">Viewerを別画面で開く</a>
+    </div>
+    <iframe id="viewerFrame" title="対戦相手 Viewer" allow="clipboard-write" referrerpolicy="no-referrer"></iframe>
   </section>
   <footer><small id="status" role="status" aria-live="polite">読み込み中…</small><small id="footerVersion"></small></footer>
 </main>

@@ -20,6 +20,7 @@
     summary: [["cards", "１．カード別"], ["days", "２．日別"], ["history", "３．対戦相手"], ["teams", "４．対戦チーム"]],
     settings: [["master", "１．マスター登録"], ["backup", "２．バックアップ"], ["maintenance", "３．保守・データ管理"]]
   };
+  const viewerUrl = "https://pand-gthb.github.io/initialdac-round-data-auto-json-00/";
   const selectedSections = Object.fromEntries(Object.entries(sectionTabs).map(([id, sections]) => [id, sections[0][0]]));
   let activeTab = "entry";
   let slotCatalog, slotCard;
@@ -125,9 +126,14 @@
   }
   function showTab(id) {
     activeTab = id;
-    for (const tab of Object.keys(sectionTabs)) $(tab).hidden = tab !== id;
+    for (const tab of [...Object.keys(sectionTabs), "viewer"]) $(tab).hidden = tab !== id;
     for (const button of document.querySelectorAll("[data-tab]")) button.setAttribute("aria-pressed", String(button.dataset.tab === id));
-    showSection(id, selectedSections[id]);
+    $("subtabs").hidden = id === "viewer";
+    if (id === "viewer") {
+      if (!$("viewerFrame").hasAttribute("src")) $("viewerFrame").src = viewerUrl;
+    } else {
+      showSection(id, selectedSections[id]);
+    }
     if (id === "summary" && state) {
       renderSummary();
       renderOpponentTeams();
@@ -1657,6 +1663,7 @@
     resultObservers.push(observer);
   }
   for (const button of document.querySelectorAll("[data-tab]")) button.onclick = () => showTab(button.dataset.tab);
+  $("reloadViewer").onclick = () => { $("viewerFrame").src = viewerUrl; };
   showTab("entry");
   $("entryForm").addEventListener("invalid", event => {
     const panel = event.target.closest("[data-subpanel]");
